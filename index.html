@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTW88 WiFi Driver Installer</title>
+    <style>
+        :root {
+            --color-bg: #1a1d23;
+            --color-surface: #22262e;
+            --color-primary: #32b8c4;
+            --color-primary-hover: #2da3ad;
+            --color-text: #e5e7eb;
+            --color-text-muted: #9ca3af;
+            --color-border: rgba(255, 255, 255, 0.1);
+            --color-success: #10b981;
+            --color-warning: #f59e0b;
+            --radius: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1d23 0%, #2d3748 100%);
+            color: var(--color-text);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--color-primary), #60d5e8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--color-text-muted);
+            margin-bottom: 20px;
+        }
+
+        .badge-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+        }
+
+        .badge svg {
+            width: 16px;
+            height: 16px;
+            fill: var(--color-primary);
+        }
+
+        .card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--color-primary);
+        }
+
+        .command-box {
+            background: #0d1117;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 20px;
+            position: relative;
+            margin: 20px 0;
+        }
+
+        .command-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .command-label {
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .copy-btn {
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: var(--color-primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .copy-btn:active {
+            transform: translateY(0);
+        }
+
+        .copy-btn.copied {
+            background: var(--color-success);
+        }
+
+        .copy-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: white;
+        }
+
+        .command-text {
+            font-family: 'Courier New', Consolas, Monaco, monospace;
+            font-size: 0.95rem;
+            color: #79c0ff;
+            background: transparent;
+            border: none;
+            width: 100%;
+            padding: 10px;
+            resize: none;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .info-item {
+            padding: 20px;
+            background: rgba(50, 184, 196, 0.1);
+            border: 1px solid rgba(50, 184, 196, 0.2);
+            border-radius: 8px;
+        }
+
+        .info-item h3 {
+            font-size: 1rem;
+            color: var(--color-primary);
+            margin-bottom: 8px;
+        }
+
+        .info-item p {
+            font-size: 0.9rem;
+            color: var(--color-text-muted);
+        }
+
+        .chipset-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .chipset-category {
+            background: rgba(50, 184, 196, 0.05);
+            border-left: 3px solid var(--color-primary);
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        .chipset-category h4 {
+            color: var(--color-primary);
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .chipset-category p {
+            color: var(--color-text-muted);
+            font-size: 0.9rem;
+            line-height: 1.8;
+        }
+
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+            display: flex;
+            gap: 12px;
+        }
+
+        .warning-box svg {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+            fill: var(--color-warning);
+        }
+
+        .warning-content {
+            flex: 1;
+        }
+
+        .warning-content h4 {
+            color: var(--color-warning);
+            margin-bottom: 6px;
+            font-size: 1rem;
+        }
+
+        .warning-content p {
+            color: var(--color-text-muted);
+            font-size: 0.9rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--color-text-muted);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--color-border);
+            margin-top: 40px;
+        }
+
+        footer a {
+            color: var(--color-primary);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 30px;
+            padding: 8px 16px;
+            color: var(--color-text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            border-bottom: 1px solid transparent;
+        }
+
+        .back-link:hover {
+            color: var(--color-primary);
+            border-bottom-color: var(--color-primary);
+            text-decoration: none;
+        }
+
+        .back-link svg {
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 RTW88 WiFi Driver Installer</h1>
+            <p class="subtitle">Automated installation for Realtek WiFi 5 drivers on Linux</p>
+            <div class="badge-container">
+                <span class="badge">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                    </svg>
+                    DKMS Support
+                </span>
+                <span class="badge">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
+                    </svg>
+                    Secure Boot Ready
+                </span>
+                <span class="badge">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" />
+                    </svg>
+                    Multi-Distro
+                </span>
+            </div>
+        </header>
+
+        <div class="card">
+            <h2>Quick Install</h2>
+            <p>Copy and paste this command into your terminal to install the RTW88 driver:</p>
+
+            <div class="command-box">
+                <div class="command-header">
+                    <span class="command-label">Installation Command</span>
+                    <button class="copy-btn" onclick="copyCommand()">
+                        <svg viewBox="0 0 24 24">
+                            <path
+                                d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+                        </svg>
+                        <span class="btn-text">Copy</span>
+                    </button>
+                </div>
+                <textarea class="command-text" id="installCommand" readonly
+                    rows="1">/bin/bash -c "$(curl -fsSL https://dandanilyuk.github.io/rtw88_driver_installer/install.sh)"</textarea>
+            </div>
+
+            <div class="warning-box">
+                <svg viewBox="0 0 24 24">
+                    <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+                </svg>
+                <div class="warning-content">
+                    <h4>Before Installation</h4>
+                    <p>Backup important data before installing drivers. The script requires sudo privileges and will
+                        prompt for your password.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>What Gets Installed</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <h3>Driver Source</h3>
+                    <p>lwfinger/rtw88 repository - the official backport of Realtek WiFi 5 drivers</p>
+                </div>
+                <div class="info-item">
+                    <h3>Installation Method</h3>
+                    <p>DKMS (Dynamic Kernel Module Support) for automatic rebuilds on kernel updates</p>
+                </div>
+                <div class="info-item">
+                    <h3>Dependencies</h3>
+                    <p>build-essential, dkms, git, and kernel headers for your system</p>
+                </div>
+                <div class="info-item">
+                    <h3>Configuration</h3>
+                    <p>Firmware files and modprobe configuration for optimal performance</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Supported Hardware</h2>
+            <div class="chipset-list">
+                <div class="chipset-category">
+                    <h4>PCIe Cards</h4>
+                    <p>RTL8723DE, RTL8814AE, RTL8821CE, RTL8822BE, RTL8822CE</p>
+                </div>
+                <div class="chipset-category">
+                    <h4>USB Adapters</h4>
+                    <p>RTL8723DU, RTL8811AU, RTL8811CU, RTL8812AU, RTL8812BU, RTL8812CU, RTL8814AU, RTL8821AU,
+                        RTL8821CU, RTL8822BU, RTL8822CU</p>
+                </div>
+                <div class="chipset-category">
+                    <h4>SDIO Cards</h4>
+                    <p>RTL8723CS, RTL8723DS, RTL8821CS, RTL8822BS, RTL8822CS</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Compatible Distributions</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <h3>✓ Ubuntu / Debian</h3>
+                    <p>20.04+, including Linux Mint and Pop!_OS</p>
+                </div>
+                <div class="info-item">
+                    <h3>✓ Kali Linux</h3>
+                    <p>Rolling release and stable versions</p>
+                </div>
+                <div class="info-item">
+                    <h3>✓ Raspberry Pi OS</h3>
+                    <p>Both 32-bit and 64-bit versions</p>
+                </div>
+                <div class="info-item">
+                    <h3>✓ Arch-based</h3>
+                    <p>Arch Linux, Manjaro, EndeavourOS</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Post-Installation</h2>
+            <p style="margin-bottom: 20px;">After running the installation script:</p>
+
+            <div class="info-item" style="margin-bottom: 15px;">
+                <h3>1. Secure Boot Users</h3>
+                <p>If Secure Boot is enabled, you'll need to enroll the MOK (Machine Owner Key). The script will guide
+                    you through this process.</p>
+            </div>
+
+            <div class="info-item" style="margin-bottom: 15px;">
+                <h3>2. Reboot Required</h3>
+                <p>Reboot your system to load the new driver. Your WiFi adapter should be recognized automatically.</p>
+            </div>
+
+            <div class="info-item">
+                <h3>3. Verify Installation</h3>
+                <p>Check that the driver is loaded with: <code
+                        style="background: rgba(50,184,196,0.1); padding: 2px 6px; border-radius: 3px; font-family: monospace;">lsmod | grep rtw</code>
+                </p>
+            </div>
+        </div>
+
+        <footer>
+            <p>
+                Driver from <a href="https://github.com/lwfinger/rtw88" target="_blank"
+                    rel="noopener noreferrer">lwfinger/rtw88</a> |
+                Source Code <a href="https://github.com/DanDanilyuk/rtw88_driver_installer" target="_blank"
+                    rel="noopener noreferrer">rtw88_driver_installer</a> |
+                Made by <a href="https://www.dandanilyuk.com/" target="_blank" rel="noopener noreferrer">Dan
+                    Danilyuk</a>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        function copyCommand() {
+            const commandText = document.getElementById('installCommand');
+            const copyBtn = document.querySelector('.copy-btn');
+            const btnText = copyBtn.querySelector('.btn-text');
+
+            // Select and copy the text
+            commandText.select();
+            commandText.setSelectionRange(0, 99999); // For mobile devices
+
+            navigator.clipboard.writeText(commandText.value).then(() => {
+                // Update button to show success
+                copyBtn.classList.add('copied');
+                btnText.textContent = 'Copied!';
+
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    copyBtn.classList.remove('copied');
+                    btnText.textContent = 'Copy';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                // Fallback for older browsers
+                try {
+                    document.execCommand('copy');
+                    copyBtn.classList.add('copied');
+                    btnText.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyBtn.classList.remove('copied');
+                        btnText.textContent = 'Copy';
+                    }, 2000);
+                } catch (e) {
+                    alert('Failed to copy. Please copy manually.');
+                }
+            });
+        }
+
+        // Allow clicking on the command text to copy
+        document.getElementById('installCommand').addEventListener('click', function () {
+            this.select();
+        });
+    </script>
+</body>
+
+</html>
