@@ -105,10 +105,16 @@
             fill: var(--color-primary);
         }
 
-         box-shadow: var(--shadow-md);
-        transition: background-color 0.3s ease,
-        border-color 0.3s ease,
-        box-shadow 0.3s ease;
+        .card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow-md);
+            transition: background-color 0.3s ease,
+                border-color 0.3s ease,
+                box-shadow 0.3s ease;
         }
 
         .card h2 {
@@ -314,15 +320,13 @@
                 font-size: 2rem;
             }
 
-             box-shadow: var(--shadow-md);
-            transition: background-color 0.3s ease,
-            border-color 0.3s ease,
-            box-shadow 0.3s ease;
-        }
+            .card {
+                padding: 20px;
+            }
 
-        .info-grid {
-            grid-template-columns: 1fr;
-        }
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
