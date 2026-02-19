@@ -7,6 +7,7 @@
     <title>RTW88 WiFi Driver Installer</title>
     <style>
         :root {
+            /* Default to Dark Mode as base */
             --color-bg: #1a1d23;
             --color-surface: #22262e;
             --color-primary: #32b8c4;
@@ -17,6 +18,22 @@
             --color-success: #10b981;
             --color-warning: #f59e0b;
             --radius: 12px;
+            --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+        }
+
+        [data-theme="light"] {
+            --color-bg: #f9fafb;
+            --color-surface: #ffffff;
+            --color-primary: #0891b2;
+            --color-primary-hover: #0e7490;
+            --color-text: #1f2937;
+            --color-text-muted: #6b7280;
+            --color-border: rgba(0, 0, 0, 0.1);
+            --color-success: #059669;
+            --color-warning: #d97706;
+            --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
 
         * {
@@ -27,11 +44,12 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #1a1d23 0%, #2d3748 100%);
+            background: var(--color-bg);
             color: var(--color-text);
             line-height: 1.6;
             min-height: 100vh;
             padding: 20px;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .container {
@@ -87,13 +105,10 @@
             fill: var(--color-primary);
         }
 
-        .card {
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius);
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+         box-shadow: var(--shadow-md);
+        transition: background-color 0.3s ease,
+        border-color 0.3s ease,
+        box-shadow 0.3s ease;
         }
 
         .card h2 {
@@ -299,19 +314,32 @@
                 font-size: 2rem;
             }
 
-            .card {
-                padding: 20px;
-            }
+             box-shadow: var(--shadow-md);
+            transition: background-color 0.3s ease,
+            border-color 0.3s ease,
+            box-shadow 0.3s ease;
+        }
 
-            .info-grid {
-                grid-template-columns: 1fr;
-            }
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
         }
     </style>
 </head>
 
 <body>
     <div class="container">
+        <div class="theme-toggle" style="position: absolute; top: 20px; right: 20px;">
+            <button id="themeToggleBtn"
+                style="background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text); padding: 8px 16px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; transition: all 0.2s ease; box-shadow: var(--shadow-sm);">
+                <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+                <span id="themeText">Dark Mode</span>
+            </button>
+        </div>
+
         <header>
             <h1>🚀 RTW88 WiFi Driver Installer</h1>
             <p class="subtitle">Automated installation for Realtek WiFi 5 drivers on Linux</p>
@@ -510,6 +538,42 @@
             this.select();
         });
     </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            const themeIcon = document.getElementById('themeIcon');
+            const themeText = document.getElementById('themeText');
+
+            // Check for saved user preference
+            const savedTheme = localStorage.getItem('theme') ||
+                (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+
+            // Apply initial theme
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateToggleButton(savedTheme);
+
+            themeToggleBtn.addEventListener('click', () => {
+                const currentTheme = document.documentElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                updateToggleButton(newTheme);
+            });
+
+            function updateToggleButton(theme) {
+                if (theme === 'light') {
+                    themeIcon.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+                    themeText.textContent = 'Light Mode';
+                } else {
+                    themeIcon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+                    themeText.textContent = 'Dark Mode';
+                }
+            }
+        });
+    </script>
+
 </body>
 
 </html>

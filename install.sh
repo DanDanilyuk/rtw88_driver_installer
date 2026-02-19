@@ -26,6 +26,42 @@ readonly NC='\033[0m'
 # State tracking
 CLEANUP_ON_EXIT=true
 
+# CLI Arguments
+show_help() {
+    echo "Usage: sudo ./install.sh [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  -h, --help         Show this help message"
+    echo "  -y, --yes          Skip confirmation prompts (unattended install)"
+    echo "  -u, --uninstall    Uninstall the driver and DKMS entries"
+    echo ""
+    exit 0
+}
+
+UNATTENDED=false
+UNINSTALL_MODE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            show_help
+            ;;
+        -y|--yes)
+            UNATTENDED=true
+            shift
+            ;;
+        -u|--uninstall)
+            UNINSTALL_MODE=true
+            shift
+            ;;
+        *)
+            log_error "Unknown option: $1"
+            show_help
+            ;;
+    esac
+done
+
+
 # --- Status & Logging Functions ---
 update_status() {
     local message="$1"
@@ -50,6 +86,21 @@ log_error() {
 }
 
 # --- Helper Functions ---
+# Spinner for long running operations
+spinner() {
+    local pid=$1
+    local delay=0.1
+    local spinstr='|/-'
+    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
+        local temp=${spinstr#?}
+        printf " [%c]  " "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf ""
+    done
+    printf "    "
+}
+
 print_banner() {
     echo -e "${GREEN}"
     echo "╔═══════════════════════════════════════════════════════════╗"
@@ -76,7 +127,12 @@ check_sudo() {
     while true; do sudo -n true; sleep 50; done 2>/dev/null &
 }
 
+
 get_user_confirmation() {
+    if [ "$UNATTENDED" = true ]; then
+        return 0
+    fi
+
     local prompt_msg="$1"
     local default="${2:-n}"
     
@@ -410,12 +466,24 @@ cleanup() {
 # --- Main Execution ---
 trap cleanup EXIT
 
+
 main() {
     print_banner
-    update_status "Installation started"
-    
     check_root
     check_sudo
+
+    if [ "$UNINSTALL_MODE" = true ]; then
+        log_warning "Uninstall mode selected"
+        if get_user_confirmation "Are you sure you want to uninstall the RTW88 driver?"; then
+            remove_existing_driver
+            log_success "Uninstallation complete"
+            exit 0
+        else
+            log_info "Uninstallation cancelled"
+            exit 0
+        fi
+    fi
+
     
     # Check Secure Boot status
     local secure_boot_enabled=false
