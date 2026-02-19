@@ -545,21 +545,30 @@
             const themeIcon = document.getElementById('themeIcon');
             const themeText = document.getElementById('themeText');
 
-            // Check for saved user preference
-            const savedTheme = localStorage.getItem('theme') ||
-                (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
 
-            // Apply initial theme
-            document.documentElement.setAttribute('data-theme', savedTheme);
-            updateToggleButton(savedTheme);
+            // Apply theme, falling back to system preference if no manual override
+            function applyTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                updateToggleButton(theme);
+            }
+
+            const savedTheme = localStorage.getItem('theme');
+            applyTheme(savedTheme || (systemDark.matches ? 'dark' : 'light'));
+
+            // Follow system changes automatically unless the user has manually chosen a theme
+            systemDark.addEventListener('change', (e) => {
+                if (!localStorage.getItem('theme')) {
+                    applyTheme(e.matches ? 'dark' : 'light');
+                }
+            });
 
             themeToggleBtn.addEventListener('click', () => {
                 const currentTheme = document.documentElement.getAttribute('data-theme');
                 const newTheme = currentTheme === 'light' ? 'dark' : 'light';
 
-                document.documentElement.setAttribute('data-theme', newTheme);
                 localStorage.setItem('theme', newTheme);
-                updateToggleButton(newTheme);
+                applyTheme(newTheme);
             });
 
             function updateToggleButton(theme) {
