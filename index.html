@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RTW88 WiFi Driver Installer</title>
+    <title>RTW88 WiFi Driver Installer for Linux</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -21,8 +21,8 @@
         </div>
 
         <header>
-            <h1>🚀 RTW88 WiFi Driver Installer</h1>
-            <p class="subtitle">Automated installation for Realtek WiFi 5 drivers on Linux</p>
+            <h1>Get Your Realtek WiFi Working on Linux</h1>
+            <p class="subtitle">One command installs RTW88 WiFi 5 drivers with DKMS, so they survive kernel updates</p>
             <div class="badge-container">
                 <span class="badge">
                     <svg viewBox="0 0 24 24">
@@ -49,7 +49,7 @@
 
         <div class="card">
             <h2>Quick Install</h2>
-            <p>Copy and paste this command into your terminal to install the RTW88 driver:</p>
+            <p>Run this in your terminal to detect your system and install the right driver:</p>
 
             <div class="command-box">
                 <div class="command-header">
@@ -62,8 +62,7 @@
                         <span class="btn-text">Copy</span>
                     </button>
                 </div>
-                <textarea class="command-text" id="installCommand" readonly
-                    rows="1">/bin/bash -c "$(curl -fsSL https://dandanilyuk.github.io/rtw88_driver_installer/install.sh)"</textarea>
+                <code class="command-text" id="installCommand">/bin/bash -c "$(curl -fsSL https://dandanilyuk.github.io/rtw88_driver_installer/install.sh)"</code>
             </div>
 
             <div class="warning-box">
@@ -71,31 +70,77 @@
                     <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
                 </svg>
                 <div class="warning-content">
-                    <h4>Before Installation</h4>
-                    <p>Backup important data before installing drivers. The script requires sudo privileges and will
-                        prompt for your password.</p>
+                    <h4>Good to Know</h4>
+                    <p>The script will ask for your sudo password. It only modifies driver-related files and can be cleanly uninstalled with <code>./install.sh -u</code>.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>What the Script Does</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-indicator">
+                        <div class="step-number">1</div>
+                        <div class="step-line"></div>
+                    </div>
+                    <div class="step-content">
+                        <h4>Detect Your System</h4>
+                        <p>Identifies your distro (Debian, Ubuntu, Kali, Arch, etc.) and installs the right dependencies.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-indicator">
+                        <div class="step-number">2</div>
+                        <div class="step-line"></div>
+                    </div>
+                    <div class="step-content">
+                        <h4>Fetch the Latest Drivers</h4>
+                        <p>Pulls the lwfinger/rtw88 source - community-maintained backports of the upstream kernel drivers.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-indicator">
+                        <div class="step-number">3</div>
+                        <div class="step-line"></div>
+                    </div>
+                    <div class="step-content">
+                        <h4>Build &amp; Register with DKMS</h4>
+                        <p>Compiles the driver for your running kernel and registers it with DKMS for automatic rebuilds on updates.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-indicator">
+                        <div class="step-number">4</div>
+                        <div class="step-line"></div>
+                    </div>
+                    <div class="step-content">
+                        <h4>Configure &amp; Activate</h4>
+                        <p>Copies firmware files, writes modprobe config, and loads the driver. A reboot finishes the job.</p>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="card">
             <h2>What Gets Installed</h2>
+
             <div class="info-grid">
                 <div class="info-item">
                     <h3>Driver Source</h3>
-                    <p>lwfinger/rtw88 repository - the official backport of Realtek WiFi 5 drivers</p>
+                    <p>lwfinger/rtw88 - community-maintained backport of the upstream Realtek WiFi 5 drivers</p>
                 </div>
                 <div class="info-item">
                     <h3>Installation Method</h3>
-                    <p>DKMS (Dynamic Kernel Module Support) for automatic rebuilds on kernel updates</p>
+                    <p>DKMS - the driver rebuilds itself automatically every time your kernel updates</p>
                 </div>
                 <div class="info-item">
                     <h3>Dependencies</h3>
-                    <p>build-essential, dkms, git, and kernel headers for your system</p>
+                    <p>build-essential (or base-devel), dkms, git, and your kernel headers - installed automatically</p>
                 </div>
                 <div class="info-item">
                     <h3>Configuration</h3>
-                    <p>Firmware files and modprobe configuration for optimal performance</p>
+                    <p>Firmware blobs and a modprobe config file tuned for stable performance</p>
                 </div>
             </div>
         </div>
@@ -120,57 +165,53 @@
         </div>
 
         <div class="card">
-            <h2>Compatible Distributions</h2>
+            <h2>Tested Distributions</h2>
             <div class="info-grid">
                 <div class="info-item">
-                    <h3>✓ Ubuntu / Debian</h3>
-                    <p>20.04+, including Linux Mint and Pop!_OS</p>
+                    <h3>Ubuntu / Debian</h3>
+                    <p>20.04+, plus derivatives like Linux Mint, Pop!_OS, and Zorin</p>
                 </div>
                 <div class="info-item">
-                    <h3>✓ Kali Linux</h3>
-                    <p>Rolling release and stable versions</p>
+                    <h3>Kali Linux</h3>
+                    <p>Rolling and stable releases, ideal for wireless pentesting setups</p>
                 </div>
                 <div class="info-item">
-                    <h3>✓ Raspberry Pi OS</h3>
+                    <h3>Raspberry Pi OS</h3>
                     <p>Both 32-bit and 64-bit versions</p>
                 </div>
                 <div class="info-item">
-                    <h3>✓ Arch-based</h3>
-                    <p>Arch Linux, Manjaro, EndeavourOS</p>
+                    <h3>Arch-based</h3>
+                    <p>Arch Linux, Manjaro, EndeavourOS, and other pacman-based distros</p>
                 </div>
             </div>
         </div>
 
         <div class="card">
-            <h2>Post-Installation</h2>
-            <p style="margin-bottom: 20px;">After running the installation script:</p>
-
-            <div class="info-item" style="margin-bottom: 15px;">
-                <h3>1. Secure Boot Users</h3>
-                <p>If Secure Boot is enabled, you'll need to enroll the MOK (Machine Owner Key). The script will guide
-                    you through this process.</p>
-            </div>
-
-            <div class="info-item" style="margin-bottom: 15px;">
-                <h3>2. Reboot Required</h3>
-                <p>Reboot your system to load the new driver. Your WiFi adapter should be recognized automatically.</p>
-            </div>
-
-            <div class="info-item">
-                <h3>3. Verify Installation</h3>
-                <p>Check that the driver is loaded with: <code
-                        style="background: rgba(50,184,196,0.1); padding: 2px 6px; border-radius: 3px; font-family: monospace;">lsmod | grep rtw</code>
-                </p>
+            <h2>After Installation</h2>
+            <p>A few things to check once the script finishes:</p>
+            <div class="post-install-list">
+                <div class="info-item">
+                    <h3>1. Secure Boot Users</h3>
+                    <p>Secure Boot requires enrolling a Machine Owner Key (MOK). The script detects this and walks you through it.</p>
+                </div>
+                <div class="info-item">
+                    <h3>2. Reboot</h3>
+                    <p>A reboot loads the new driver. Your WiFi adapter should appear automatically afterward.</p>
+                </div>
+                <div class="info-item">
+                    <h3>3. Verify</h3>
+                    <p>Confirm the driver loaded: <code>lsmod | grep rtw</code></p>
+                </div>
             </div>
         </div>
 
         <footer>
             <p>
-                Driver from <a href="https://github.com/lwfinger/rtw88" target="_blank"
-                    rel="noopener noreferrer">lwfinger/rtw88</a> |
-                Source Code <a href="https://github.com/DanDanilyuk/rtw88_driver_installer" target="_blank"
-                    rel="noopener noreferrer">rtw88_driver_installer</a> |
-                Made by <a href="https://www.dandanilyuk.com/" target="_blank" rel="noopener noreferrer">Dan
+                Drivers by <a href="https://github.com/lwfinger/rtw88" target="_blank"
+                    rel="noopener noreferrer">lwfinger/rtw88</a> &middot;
+                Installer source on <a href="https://github.com/DanDanilyuk/rtw88_driver_installer" target="_blank"
+                    rel="noopener noreferrer">GitHub</a> &middot;
+                Built by <a href="https://www.dandanilyuk.com/" target="_blank" rel="noopener noreferrer">Dan
                     Danilyuk</a>
             </p>
         </footer>

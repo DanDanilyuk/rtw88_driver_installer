@@ -1,25 +1,26 @@
 function copyCommand() {
-    const commandText = document.getElementById('installCommand');
+    const commandEl = document.getElementById('installCommand');
     const copyBtn = document.querySelector('.copy-btn');
     const btnText = copyBtn.querySelector('.btn-text');
 
-    // Select and copy the text
-    commandText.select();
-    commandText.setSelectionRange(0, 99999); // For mobile devices
+    const text = commandEl.textContent;
 
-    navigator.clipboard.writeText(commandText.value).then(() => {
-        // Update button to show success
+    navigator.clipboard.writeText(text).then(() => {
         copyBtn.classList.add('copied');
         btnText.textContent = 'Copied!';
 
-        // Reset button after 2 seconds
         setTimeout(() => {
             copyBtn.classList.remove('copied');
             btnText.textContent = 'Copy';
         }, 2000);
-    }).catch(err => {
-        console.error('Failed to copy:', err);
-        // Fallback for older browsers
+    }).catch(() => {
+        // Fallback: create a temporary textarea
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
         try {
             document.execCommand('copy');
             copyBtn.classList.add('copied');
@@ -31,13 +32,9 @@ function copyCommand() {
         } catch (e) {
             alert('Failed to copy. Please copy manually.');
         }
+        document.body.removeChild(ta);
     });
 }
-
-// Allow clicking on the command text to copy
-document.getElementById('installCommand').addEventListener('click', function () {
-    this.select();
-});
 
 document.addEventListener('DOMContentLoaded', () => {
     const themeToggleBtn = document.getElementById('themeToggleBtn');
