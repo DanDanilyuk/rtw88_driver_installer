@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RTW88 WiFi Driver Installer for Linux</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -23,196 +27,166 @@
         <header>
             <h1>Get Your Realtek WiFi Working on Linux</h1>
             <p class="subtitle">One command installs RTW88 WiFi 5 drivers with DKMS, so they survive kernel updates</p>
-            <div class="badge-container">
+            <div class="badges">
                 <span class="badge">
-                    <svg viewBox="0 0 24 24">
-                        <path
-                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                    </svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
                     DKMS Support
                 </span>
                 <span class="badge">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
-                    </svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
                     Secure Boot Ready
                 </span>
                 <span class="badge">
-                    <svg viewBox="0 0 24 24">
-                        <path
-                            d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" />
-                    </svg>
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" /></svg>
                     Multi-Distro
                 </span>
             </div>
         </header>
 
-        <div class="card">
-            <h2>Quick Install</h2>
-            <p>Run this in your terminal to detect your system and install the right driver:</p>
-
-            <div class="command-box">
-                <div class="command-header">
-                    <span class="command-label">Installation Command</span>
-                    <button class="copy-btn" onclick="copyCommand()">
-                        <svg viewBox="0 0 24 24">
-                            <path
-                                d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
-                        </svg>
-                        <span class="btn-text">Copy</span>
-                    </button>
+        <main>
+            <section class="card">
+                <h2>Quick Install</h2>
+                <p>Run this in your terminal to detect your system and install the right driver:</p>
+                <div class="terminal">
+                    <div class="terminal-bar">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <span class="terminal-title">bash</span>
+                        <button class="copy-btn" onclick="copyCommand()">
+                            <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" /></svg>
+                            <span class="btn-text">Copy</span>
+                        </button>
+                    </div>
+                    <code class="terminal-body" id="installCommand">/bin/bash -c "$(curl -fsSL https://dandanilyuk.github.io/rtw88_driver_installer/install.sh)"</code>
                 </div>
-                <code class="command-text" id="installCommand">/bin/bash -c "$(curl -fsSL https://dandanilyuk.github.io/rtw88_driver_installer/install.sh)"</code>
-            </div>
-
-            <div class="warning-box">
-                <svg viewBox="0 0 24 24">
-                    <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
-                </svg>
-                <div class="warning-content">
-                    <h4>Good to Know</h4>
+                <div class="notice">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" /></svg>
                     <p>The script will ask for your sudo password. It only modifies driver-related files and can be cleanly uninstalled with <code>./install.sh -u</code>.</p>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <div class="card">
-            <h2>What the Script Does</h2>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-indicator">
-                        <div class="step-number">1</div>
-                        <div class="step-line"></div>
+            <section class="card">
+                <h2>What the Script Does</h2>
+                <div class="steps">
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        <div class="step-body">
+                            <h4>Detect Your System</h4>
+                            <p>Identifies your distro (Debian, Ubuntu, Kali, Arch, etc.) and installs the right dependencies.</p>
+                        </div>
                     </div>
-                    <div class="step-content">
-                        <h4>Detect Your System</h4>
-                        <p>Identifies your distro (Debian, Ubuntu, Kali, Arch, etc.) and installs the right dependencies.</p>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        <div class="step-body">
+                            <h4>Fetch the Latest Drivers</h4>
+                            <p>Pulls the lwfinger/rtw88 source - community-maintained backports of the upstream kernel drivers.</p>
+                        </div>
                     </div>
-                </div>
-                <div class="step">
-                    <div class="step-indicator">
-                        <div class="step-number">2</div>
-                        <div class="step-line"></div>
+                    <div class="step">
+                        <span class="step-num">3</span>
+                        <div class="step-body">
+                            <h4>Build &amp; Register with DKMS</h4>
+                            <p>Compiles the driver for your running kernel and registers it with DKMS for automatic rebuilds on updates.</p>
+                        </div>
                     </div>
-                    <div class="step-content">
-                        <h4>Fetch the Latest Drivers</h4>
-                        <p>Pulls the lwfinger/rtw88 source - community-maintained backports of the upstream kernel drivers.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-indicator">
-                        <div class="step-number">3</div>
-                        <div class="step-line"></div>
-                    </div>
-                    <div class="step-content">
-                        <h4>Build &amp; Register with DKMS</h4>
-                        <p>Compiles the driver for your running kernel and registers it with DKMS for automatic rebuilds on updates.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-indicator">
-                        <div class="step-number">4</div>
-                        <div class="step-line"></div>
-                    </div>
-                    <div class="step-content">
-                        <h4>Configure &amp; Activate</h4>
-                        <p>Copies firmware files, writes modprobe config, and loads the driver. A reboot finishes the job.</p>
+                    <div class="step">
+                        <span class="step-num">4</span>
+                        <div class="step-body">
+                            <h4>Configure &amp; Activate</h4>
+                            <p>Copies firmware files, writes modprobe config, and loads the driver. A reboot finishes the job.</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <div class="card">
-            <h2>What Gets Installed</h2>
+            <section class="card">
+                <h2>What Gets Installed</h2>
+                <div class="grid">
+                    <div class="grid-item">
+                        <h3>Driver Source</h3>
+                        <p>lwfinger/rtw88 - community-maintained backport of the upstream Realtek WiFi 5 drivers</p>
+                    </div>
+                    <div class="grid-item">
+                        <h3>Installation Method</h3>
+                        <p>DKMS - the driver rebuilds itself automatically every time your kernel updates</p>
+                    </div>
+                    <div class="grid-item">
+                        <h3>Dependencies</h3>
+                        <p>build-essential (or base-devel), dkms, git, and your kernel headers - installed automatically</p>
+                    </div>
+                    <div class="grid-item">
+                        <h3>Configuration</h3>
+                        <p>Firmware blobs and a modprobe config file tuned for stable performance</p>
+                    </div>
+                </div>
+            </section>
 
-            <div class="info-grid">
-                <div class="info-item">
-                    <h3>Driver Source</h3>
-                    <p>lwfinger/rtw88 - community-maintained backport of the upstream Realtek WiFi 5 drivers</p>
+            <section class="card">
+                <h2>Supported Hardware</h2>
+                <div class="chipsets">
+                    <div class="chipset">
+                        <h4>PCIe Cards</h4>
+                        <p>RTL8723DE, RTL8814AE, RTL8821CE, RTL8822BE, RTL8822CE</p>
+                    </div>
+                    <div class="chipset">
+                        <h4>USB Adapters</h4>
+                        <p>RTL8723DU, RTL8811AU, RTL8811CU, RTL8812AU, RTL8812BU, RTL8812CU, RTL8814AU, RTL8821AU, RTL8821CU, RTL8822BU, RTL8822CU</p>
+                    </div>
+                    <div class="chipset">
+                        <h4>SDIO Cards</h4>
+                        <p>RTL8723CS, RTL8723DS, RTL8821CS, RTL8822BS, RTL8822CS</p>
+                    </div>
                 </div>
-                <div class="info-item">
-                    <h3>Installation Method</h3>
-                    <p>DKMS - the driver rebuilds itself automatically every time your kernel updates</p>
-                </div>
-                <div class="info-item">
-                    <h3>Dependencies</h3>
-                    <p>build-essential (or base-devel), dkms, git, and your kernel headers - installed automatically</p>
-                </div>
-                <div class="info-item">
-                    <h3>Configuration</h3>
-                    <p>Firmware blobs and a modprobe config file tuned for stable performance</p>
-                </div>
-            </div>
-        </div>
+            </section>
 
-        <div class="card">
-            <h2>Supported Hardware</h2>
-            <div class="chipset-list">
-                <div class="chipset-category">
-                    <h4>PCIe Cards</h4>
-                    <p>RTL8723DE, RTL8814AE, RTL8821CE, RTL8822BE, RTL8822CE</p>
+            <section class="card">
+                <h2>Tested Distributions</h2>
+                <div class="grid">
+                    <div class="grid-item">
+                        <h3>Ubuntu / Debian</h3>
+                        <p>20.04+, plus derivatives like Linux Mint, Pop!_OS, and Zorin</p>
+                    </div>
+                    <div class="grid-item">
+                        <h3>Kali Linux</h3>
+                        <p>Rolling and stable releases, ideal for wireless pentesting setups</p>
+                    </div>
+                    <div class="grid-item">
+                        <h3>Raspberry Pi OS</h3>
+                        <p>Both 32-bit and 64-bit versions</p>
+                    </div>
+                    <div class="grid-item">
+                        <h3>Arch-based</h3>
+                        <p>Arch Linux, Manjaro, EndeavourOS, and other pacman-based distros</p>
+                    </div>
                 </div>
-                <div class="chipset-category">
-                    <h4>USB Adapters</h4>
-                    <p>RTL8723DU, RTL8811AU, RTL8811CU, RTL8812AU, RTL8812BU, RTL8812CU, RTL8814AU, RTL8821AU,
-                        RTL8821CU, RTL8822BU, RTL8822CU</p>
-                </div>
-                <div class="chipset-category">
-                    <h4>SDIO Cards</h4>
-                    <p>RTL8723CS, RTL8723DS, RTL8821CS, RTL8822BS, RTL8822CS</p>
-                </div>
-            </div>
-        </div>
+            </section>
 
-        <div class="card">
-            <h2>Tested Distributions</h2>
-            <div class="info-grid">
-                <div class="info-item">
-                    <h3>Ubuntu / Debian</h3>
-                    <p>20.04+, plus derivatives like Linux Mint, Pop!_OS, and Zorin</p>
+            <section class="card">
+                <h2>After Installation</h2>
+                <p>A few things to check once the script finishes:</p>
+                <div class="post-steps">
+                    <div class="grid-item">
+                        <h3>1. Secure Boot Users</h3>
+                        <p>Secure Boot requires enrolling a Machine Owner Key (MOK). The script detects this and walks you through it.</p>
+                    </div>
+                    <div class="grid-item">
+                        <h3>2. Reboot</h3>
+                        <p>A reboot loads the new driver. Your WiFi adapter should appear automatically afterward.</p>
+                    </div>
+                    <div class="grid-item">
+                        <h3>3. Verify</h3>
+                        <p>Confirm the driver loaded: <code>lsmod | grep rtw</code></p>
+                    </div>
                 </div>
-                <div class="info-item">
-                    <h3>Kali Linux</h3>
-                    <p>Rolling and stable releases, ideal for wireless pentesting setups</p>
-                </div>
-                <div class="info-item">
-                    <h3>Raspberry Pi OS</h3>
-                    <p>Both 32-bit and 64-bit versions</p>
-                </div>
-                <div class="info-item">
-                    <h3>Arch-based</h3>
-                    <p>Arch Linux, Manjaro, EndeavourOS, and other pacman-based distros</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>After Installation</h2>
-            <p>A few things to check once the script finishes:</p>
-            <div class="post-install-list">
-                <div class="info-item">
-                    <h3>1. Secure Boot Users</h3>
-                    <p>Secure Boot requires enrolling a Machine Owner Key (MOK). The script detects this and walks you through it.</p>
-                </div>
-                <div class="info-item">
-                    <h3>2. Reboot</h3>
-                    <p>A reboot loads the new driver. Your WiFi adapter should appear automatically afterward.</p>
-                </div>
-                <div class="info-item">
-                    <h3>3. Verify</h3>
-                    <p>Confirm the driver loaded: <code>lsmod | grep rtw</code></p>
-                </div>
-            </div>
-        </div>
+            </section>
+        </main>
 
         <footer>
             <p>
-                Drivers by <a href="https://github.com/lwfinger/rtw88" target="_blank"
-                    rel="noopener noreferrer">lwfinger/rtw88</a> &middot;
-                Installer source on <a href="https://github.com/DanDanilyuk/rtw88_driver_installer" target="_blank"
-                    rel="noopener noreferrer">GitHub</a> &middot;
-                Built by <a href="https://www.dandanilyuk.com/" target="_blank" rel="noopener noreferrer">Dan
-                    Danilyuk</a>
+                Drivers by <a href="https://github.com/lwfinger/rtw88" target="_blank" rel="noopener noreferrer">lwfinger/rtw88</a> &middot;
+                Installer source on <a href="https://github.com/DanDanilyuk/rtw88_driver_installer" target="_blank" rel="noopener noreferrer">GitHub</a> &middot;
+                Built by <a href="https://www.dandanilyuk.com/" target="_blank" rel="noopener noreferrer">Dan Danilyuk</a>
             </p>
         </footer>
     </div>
