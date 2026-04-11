@@ -54,6 +54,10 @@
 
 /* ── Base ── */
 
+html {
+    scroll-behavior: smooth;
+}
+
 body {
     font-family: var(--font);
     background: var(--bg);
@@ -121,6 +125,16 @@ h1 {
 
 .badge:hover {
     border-color: var(--primary);
+}
+
+.badge-link {
+    text-decoration: none;
+    color: var(--text-muted);
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.badge-link:hover {
+    background: var(--primary-soft);
 }
 
 .badge svg {
@@ -438,6 +452,29 @@ main > .card:nth-child(6) { animation-delay: 0.28s; }
     line-height: 1.7;
 }
 
+.chipset-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.chipset-list code {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    padding: 3px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.chipset-list code:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
 /* ── Post-install steps ── */
 
 .post-steps {
@@ -575,5 +612,24 @@ footer a:hover {
     .terminal-body {
         font-size: 0.72rem;
         padding: 12px;
+    }
+}
+
+/* ── Accessibility ── */
+
+:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    html {
+        scroll-behavior: auto;
     }
 }

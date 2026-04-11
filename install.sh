@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+trap 'echo -e "\033[0;31m[ERROR]\033[0m Script failed at line $LINENO (exit code: $?)" >&2' ERR
 
 # RTW88 Driver Installation Script
 # Installs Realtek WiFi 5 drivers (rtw88) with DKMS support
@@ -104,7 +105,7 @@ spinner() {
     while kill -0 "$pid" 2>/dev/null; do
         local temp=${spinstr#?}
         printf " [%c]  " "$spinstr"
-        local spinstr=$temp${spinstr%"$temp"}
+        spinstr=$temp${spinstr%"$temp"}
         sleep "$delay"
         printf "\b\b\b\b\b\b"
     done
@@ -177,6 +178,24 @@ check_sudo() {
     while true; do sudo -n true; sleep 50; done 2>/dev/null &
 }
 
+check_network() {
+    log_info "Checking network connectivity..."
+    if command -v curl &>/dev/null; then
+        if ! curl -sf --max-time 10 https://github.com > /dev/null 2>&1; then
+            log_error "Cannot reach github.com. Check your internet connection."
+            exit 1
+        fi
+    elif command -v wget &>/dev/null; then
+        if ! wget -q --timeout=10 --spider https://github.com 2>/dev/null; then
+            log_error "Cannot reach github.com. Check your internet connection."
+            exit 1
+        fi
+    else
+        log_warning "Cannot verify network (no curl or wget). Continuing anyway..."
+        return 0
+    fi
+    log_success "Network connectivity OK"
+}
 
 get_user_confirmation() {
     if [ "$UNATTENDED" = true ]; then
@@ -459,7 +478,7 @@ clone_repository() {
 
     log_info "Cloning rtw88 driver repository..."
     local clone_output
-    if clone_output=$(git clone "$REPO_URL" "$REPO_DIR" 2>&1); then
+    if clone_output=$(git clone --depth 1 "$REPO_URL" "$REPO_DIR" 2>&1); then
         log_success "Repository cloned successfully"
         return 0
     else
@@ -590,6 +609,9 @@ trap cleanup EXIT
 
 
 main() {
+    local start_time
+    start_time=$(date +%s)
+
     print_banner
     check_root
     check_sudo
@@ -619,6 +641,9 @@ main() {
         log_info "Installation cancelled"
         exit 0
     fi
+
+    # Verify network before doing anything that requires it
+    check_network
 
     # Check for existing driver and remove if found
     if check_existing_driver; then
@@ -703,6 +728,11 @@ main() {
     fi
 
     update_status "Installation complete"
+
+    local end_time elapsed
+    end_time=$(date +%s)
+    elapsed=$((end_time - start_time))
+    log_info "Completed in $((elapsed / 60))m $((elapsed % 60))s"
 
     # Show post-installation instructions
     show_post_install_instructions

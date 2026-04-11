@@ -5,11 +5,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RTW88 WiFi Driver Installer for Linux</title>
+    <meta name="description" content="One-command installer for Realtek RTW88 WiFi 5 drivers on Linux. Supports Ubuntu, Debian, Kali, Arch, and Raspberry Pi OS with DKMS for automatic kernel update rebuilds.">
+    <meta property="og:title" content="RTW88 WiFi Driver Installer for Linux">
+    <meta property="og:description" content="One-command installer for Realtek RTW88 WiFi 5 drivers on Linux with DKMS support. Works on Ubuntu, Debian, Kali, Arch, and Raspberry Pi.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://dandanilyuk.github.io/rtw88_driver_installer/">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
 </head>
 
 <body>
@@ -40,6 +52,10 @@
                     <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" /></svg>
                     Multi-Distro
                 </span>
+                <a href="https://github.com/DanDanilyuk/rtw88_driver_installer" class="badge badge-link" target="_blank" rel="noopener noreferrer">
+                    <svg viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                    GitHub
+                </a>
             </div>
         </header>
 
@@ -127,15 +143,39 @@
                 <div class="chipsets">
                     <div class="chipset">
                         <h4>PCIe Cards</h4>
-                        <p>RTL8723DE, RTL8814AE, RTL8821CE, RTL8822BE, RTL8822CE</p>
+                        <div class="chipset-list">
+                            <code>RTL8723DE</code>
+                            <code>RTL8814AE</code>
+                            <code>RTL8821CE</code>
+                            <code>RTL8822BE</code>
+                            <code>RTL8822CE</code>
+                        </div>
                     </div>
                     <div class="chipset">
                         <h4>USB Adapters</h4>
-                        <p>RTL8723DU, RTL8811AU, RTL8811CU, RTL8812AU, RTL8812BU, RTL8812CU, RTL8814AU, RTL8821AU, RTL8821CU, RTL8822BU, RTL8822CU</p>
+                        <div class="chipset-list">
+                            <code>RTL8723DU</code>
+                            <code>RTL8811AU</code>
+                            <code>RTL8811CU</code>
+                            <code>RTL8812AU</code>
+                            <code>RTL8812BU</code>
+                            <code>RTL8812CU</code>
+                            <code>RTL8814AU</code>
+                            <code>RTL8821AU</code>
+                            <code>RTL8821CU</code>
+                            <code>RTL8822BU</code>
+                            <code>RTL8822CU</code>
+                        </div>
                     </div>
                     <div class="chipset">
                         <h4>SDIO Cards</h4>
-                        <p>RTL8723CS, RTL8723DS, RTL8821CS, RTL8822BS, RTL8822CS</p>
+                        <div class="chipset-list">
+                            <code>RTL8723CS</code>
+                            <code>RTL8723DS</code>
+                            <code>RTL8821CS</code>
+                            <code>RTL8822BS</code>
+                            <code>RTL8822CS</code>
+                        </div>
                     </div>
                 </div>
             </section>
