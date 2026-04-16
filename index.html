@@ -44,7 +44,7 @@
 
         <header>
             <h1>Get Your Realtek WiFi Working on Linux</h1>
-            <p class="subtitle">One command installs RTW88 WiFi 5 drivers with DKMS, so they survive kernel updates</p>
+            <p class="subtitle">One command installs RTW88 WiFi 5 drivers with DKMS - so they survive every kernel update.</p>
             <div class="badges">
                 <span class="badge">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
@@ -68,7 +68,7 @@
         <main id="main-content">
             <section class="card">
                 <h2>Quick Install</h2>
-                <p>Run this in your terminal to detect your system and install the right driver:</p>
+                <p>Run this in your terminal. It auto-detects your distro and installs the right driver:</p>
                 <div class="terminal">
                     <div class="terminal-bar">
                         <div class="terminal-dots">
@@ -84,7 +84,7 @@
                 </div>
                 <div class="notice">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" /></svg>
-                    <p>The script will ask for your sudo password. It only modifies driver-related files and can be cleanly uninstalled with <code>./install.sh -u</code>.</p>
+                    <p>The script asks for your sudo password. It only modifies driver-related files, and you can uninstall cleanly by re-running the command with <code>-u</code>.</p>
                 </div>
             </section>
 
@@ -102,20 +102,20 @@
                         <span class="step-num">2</span>
                         <div class="step-body">
                             <h4>Fetch the Latest Drivers</h4>
-                            <p>Pulls the lwfinger/rtw88 source - community-maintained backports of the upstream kernel drivers.</p>
+                            <p>Pulls the lwfinger/rtw88 source - a community-maintained backport of the upstream kernel drivers.</p>
                         </div>
                     </div>
                     <div class="step">
                         <span class="step-num">3</span>
                         <div class="step-body">
                             <h4>Build &amp; Register with DKMS</h4>
-                            <p>Compiles the driver for your running kernel and registers it with DKMS for automatic rebuilds on updates.</p>
+                            <p>Compiles the driver for your running kernel and registers it with DKMS so it rebuilds automatically on every kernel update.</p>
                         </div>
                     </div>
                     <div class="step">
                         <span class="step-num">4</span>
                         <div class="step-body">
-                            <h4>Configure &amp; Activate</h4>
+                            <h4>Configure &amp; Load</h4>
                             <p>Copies firmware files, writes modprobe config, and loads the driver. A reboot finishes the job.</p>
                         </div>
                     </div>
@@ -139,7 +139,7 @@
                     </div>
                     <div class="grid-item">
                         <h3>Configuration</h3>
-                        <p>Firmware blobs and a modprobe config file tuned for stable performance</p>
+                        <p>Firmware blobs and a modprobe config with sensible defaults</p>
                     </div>
                 </div>
             </section>
@@ -191,11 +191,11 @@
                 <div class="grid">
                     <div class="grid-item">
                         <h3>Ubuntu / Debian</h3>
-                        <p>20.04+, plus derivatives like Linux Mint, Pop!_OS, and Zorin</p>
+                        <p>Ubuntu 20.04+, Debian, and derivatives like Linux Mint, Pop!_OS, and Zorin</p>
                     </div>
                     <div class="grid-item">
                         <h3>Kali Linux</h3>
-                        <p>Rolling and stable releases, ideal for wireless pentesting setups</p>
+                        <p>Rolling and stable releases - a common pick for wireless pentesting</p>
                     </div>
                     <div class="grid-item">
                         <h3>Raspberry Pi OS</h3>
@@ -213,12 +213,12 @@
                 <p>A few things to check once the script finishes:</p>
                 <div class="post-steps">
                     <div class="grid-item">
-                        <h3>1. Secure Boot Users</h3>
+                        <h3>1. Handle Secure Boot</h3>
                         <p>Secure Boot requires enrolling a Machine Owner Key (MOK). The script detects this and walks you through it.</p>
                     </div>
                     <div class="grid-item">
                         <h3>2. Reboot</h3>
-                        <p>A reboot loads the new driver. Your WiFi adapter should appear automatically afterward.</p>
+                        <p>A reboot loads the new driver. Your WiFi adapter should appear automatically.</p>
                     </div>
                     <div class="grid-item">
                         <h3>3. Verify</h3>
