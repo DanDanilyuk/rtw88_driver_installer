@@ -1,6 +1,9 @@
 #!/bin/bash
-set -euo pipefail
-trap 'echo -e "\033[0;31m[ERROR]\033[0m Script failed at line $LINENO (exit code: $?)" >&2' ERR
+set -Eeuo pipefail
+# LOG_FILE has a default here so the ERR trap below can reference it safely
+# even if the trap fires before main() reassigns LOG_FILE.
+LOG_FILE="${LOG_FILE:-/var/log/rtw88-install.log}"
+trap 'echo -e "\033[0;31m[ERROR]\033[0m Script failed in ${FUNCNAME[0]:-main}() at line $LINENO (exit code: $?). See ${LOG_FILE} for the full log." >&2' ERR
 
 # RTW88 Driver Installation Script
 # Installs Realtek WiFi 5 drivers (rtw88) with DKMS support
@@ -31,6 +34,14 @@ CLEANUP_ON_EXIT=true
 SUDO_KEEPALIVE_PID=""
 APT_UPDATE_DONE=false
 
+# Step counter (updated by step_begin). STEP_TOTAL must match the number of
+# step_begin() calls in main(); bump this when adding or removing a phase.
+STEP_TOTAL=8
+STEP_CURRENT=0
+
+# Note: LOG_FILE is initialized near the top of the script (before the ERR trap)
+# and is reassigned in main() with a /tmp fallback if /var/log isn't writable.
+
 # Avoid interactive apt prompts for config files
 export DEBIAN_FRONTEND=noninteractive
 
@@ -55,6 +66,12 @@ log_warning() {
 
 log_error() {
     echo -e "${RED}[ERROR]${NC} $*"
+}
+
+step_begin() {
+    STEP_CURRENT=$((STEP_CURRENT + 1))
+    echo ""
+    echo -e "${BLUE}[${STEP_CURRENT}/${STEP_TOTAL}]${NC} $*"
 }
 
 # CLI Arguments
@@ -111,12 +128,60 @@ apt_update_once() {
     APT_UPDATE_DONE=true
 }
 
+# pkg_installed <package> - returns 0 if installed, 1 otherwise.
+pkg_installed() {
+    local pkg="$1"
+    if [[ "$DISTRO_FAMILY" == "arch" ]]; then
+        pacman -Qi "$pkg" &>/dev/null
+    else
+        dpkg -l "$pkg" 2>/dev/null | grep -q "^ii"
+    fi
+}
+
+# pkg_install <package...> - installs one or more packages non-interactively.
+# On Debian, ensures `apt-get update` has run once this session.
+pkg_install() {
+    if [[ "$DISTRO_FAMILY" == "arch" ]]; then
+        sudo pacman -S --noconfirm --needed "$@"
+    else
+        apt_update_once
+        sudo apt-get install -y "$@"
+    fi
+}
+
+# pkg_search_exact <package> - returns 0 if the exact package name is known
+# to the configured repositories, 1 otherwise.
+pkg_search_exact() {
+    local pkg="$1"
+    if [[ "$DISTRO_FAMILY" == "arch" ]]; then
+        pacman -Si "$pkg" &>/dev/null
+    else
+        apt-cache search "^${pkg}\$" 2>/dev/null | grep -q "^${pkg} "
+    fi
+}
+
 print_banner() {
+    # Box is 61 columns wide overall (59-char interior between ║ borders).
+    local inner=59
+    local title="RTW88 WiFi 5 Driver Installer (v${SCRIPT_VERSION})"
+    local subtitle="Automated DKMS setup for Linux"
+    local border=""
+    local i
+    for ((i = 0; i < inner; i++)); do
+        border+="═"
+    done
+
     echo -e "${GREEN}"
-    echo "╔═══════════════════════════════════════════════════════════╗"
-    echo "║        RTW88 WiFi 5 Driver Installer (v${SCRIPT_VERSION})          ║"
-    echo "║           Automated DKMS setup for Linux                ║"
-    echo "╚═══════════════════════════════════════════════════════════╝"
+    echo "╔${border}╗"
+    printf "║%*s%s%*s║\n" \
+        $(( (inner - ${#title}) / 2 )) "" \
+        "$title" \
+        $(( inner - ${#title} - (inner - ${#title}) / 2 )) ""
+    printf "║%*s%s%*s║\n" \
+        $(( (inner - ${#subtitle}) / 2 )) "" \
+        "$subtitle" \
+        $(( inner - ${#subtitle} - (inner - ${#subtitle}) / 2 )) ""
+    echo "╚${border}╝"
     echo -e "${NC}"
 }
 
@@ -198,7 +263,7 @@ check_network() {
 }
 
 get_user_confirmation() {
-    if [ "$UNATTENDED" = true ]; then
+    if [[ "$UNATTENDED" == true ]]; then
         return 0
     fi
 
@@ -326,11 +391,9 @@ check_and_install_kernel_headers() {
     log_warning "Kernel headers not found, attempting to install..."
 
     if [[ "$DISTRO_FAMILY" == "arch" ]]; then
-        # Arch-based: install linux-headers matching the running kernel.
-        # Do NOT run `pacman -Sy` standalone (partial-upgrade anti-pattern);
+        # Determine correct headers package based on kernel variant.
+        # NOTE: do NOT run `pacman -Sy` standalone (partial-upgrade anti-pattern);
         # full upgrades are handled by check_updates_required().
-
-        # Determine correct headers package based on kernel variant
         local headers_pkg="linux-headers"
         if [[ "$kernel_version" == *"-lts"* ]]; then
             headers_pkg="linux-lts-headers"
@@ -341,7 +404,7 @@ check_and_install_kernel_headers() {
         fi
 
         log_info "Installing ${headers_pkg}..."
-        if sudo pacman -S --noconfirm --needed "$headers_pkg" 2>/dev/null; then
+        if pkg_install "$headers_pkg"; then
             log_success "Kernel headers installed"
             return 0
         fi
@@ -352,29 +415,27 @@ check_and_install_kernel_headers() {
     fi
 
     # Debian-based path
-    apt_update_once
 
     # Try Raspberry Pi headers if on RPi
     if is_raspberry_pi; then
         log_info "Raspberry Pi detected, installing raspberrypi-kernel-headers..."
-        if sudo apt-get install -y raspberrypi-kernel-headers build-essential 2>/dev/null; then
+        if pkg_install raspberrypi-kernel-headers build-essential; then
             log_success "Raspberry Pi kernel headers installed"
             return 0
         fi
     fi
 
-    # Try standard headers packages based on distro
+    # Try the exact headers package matching the running kernel
     local headers_pkg="linux-headers-${kernel_version}"
-
-    if apt-cache search "^${headers_pkg}$" 2>/dev/null | grep -q "$headers_pkg"; then
-        if sudo apt-get install -y "$headers_pkg" 2>/dev/null; then
+    if pkg_search_exact "$headers_pkg"; then
+        if pkg_install "$headers_pkg"; then
             log_success "Kernel headers installed"
             return 0
         fi
     fi
 
-    # Try generic headers as fallback
-    if sudo apt-get install -y linux-headers-generic 2>/dev/null; then
+    # Fall back to the generic metapackage
+    if pkg_install linux-headers-generic; then
         log_success "Generic kernel headers installed"
         return 0
     fi
@@ -417,44 +478,21 @@ check_updates_required() {
 install_packages() {
     log_info "Installing required packages..."
 
+    local packages=()
     if [[ "$DISTRO_FAMILY" == "arch" ]]; then
-        # Arch equivalents: dkms, git, base-devel (replaces build-essential)
-        local arch_packages=("dkms" "git" "base-devel")
-        local missing_packages=()
-
-        for pkg in "${arch_packages[@]}"; do
-            if [[ "$pkg" == "base-devel" ]]; then
-                # base-devel is a package group; check for gcc as a proxy
-                if ! pacman -Qi gcc &>/dev/null; then
-                    missing_packages+=("$pkg")
-                fi
-            else
-                if ! pacman -Qi "$pkg" &>/dev/null; then
-                    missing_packages+=("$pkg")
-                fi
-            fi
-        done
-
-        if [[ ${#missing_packages[@]} -eq 0 ]]; then
-            log_success "All required packages already installed"
-            return 0
-        fi
-
-        log_info "Installing: ${missing_packages[*]}"
-        if sudo pacman -S --noconfirm --needed "${missing_packages[@]}" 2>/dev/null; then
-            log_success "Packages installed successfully"
-        else
-            log_error "Failed to install required packages"
-            return 1
-        fi
-        return 0
+        # base-devel is a package group; check for gcc as a proxy.
+        packages=("dkms" "git" "base-devel")
+    else
+        packages=("dkms" "git" "build-essential")
     fi
 
-    # Debian-based path
-    local deb_packages=("dkms" "git" "build-essential")
     local missing_packages=()
-    for pkg in "${deb_packages[@]}"; do
-        if ! dpkg -l "$pkg" 2>/dev/null | grep -q "^ii"; then
+    for pkg in "${packages[@]}"; do
+        local probe="$pkg"
+        if [[ "$pkg" == "base-devel" ]]; then
+            probe="gcc"
+        fi
+        if ! pkg_installed "$probe"; then
             missing_packages+=("$pkg")
         fi
     done
@@ -465,7 +503,7 @@ install_packages() {
     fi
 
     log_info "Installing: ${missing_packages[*]}"
-    if sudo apt-get install -y "${missing_packages[@]}" 2>/dev/null; then
+    if pkg_install "${missing_packages[@]}"; then
         log_success "Packages installed successfully"
     else
         log_error "Failed to install required packages"
@@ -671,9 +709,20 @@ main() {
     check_root
     check_sudo
     acquire_install_lock
-    detect_distro
 
-    if [ "$UNINSTALL_MODE" = true ]; then
+    # Set up log file mirror; fall back to /tmp if /var/log isn't writable.
+    if ! sudo touch "$LOG_FILE" 2>/dev/null; then
+        LOG_FILE="/tmp/rtw88-install-$$.log"
+        : > "$LOG_FILE" 2>/dev/null || true
+    fi
+    sudo chmod 0644 "$LOG_FILE" 2>/dev/null || true
+    # Mirror all output to $LOG_FILE while still showing colors on the terminal.
+    # `stdbuf -oL` keeps tee line-buffered so `read -p` prompts flush immediately.
+    exec > >(stdbuf -oL sudo tee -a "$LOG_FILE") 2>&1
+    log_info "Saving a full log to: $LOG_FILE (useful if something fails)"
+
+    if [[ "$UNINSTALL_MODE" == true ]]; then
+        detect_distro
         log_warning "Uninstall mode selected"
         if get_user_confirmation "Are you sure you want to uninstall the RTW88 driver?"; then
             remove_existing_driver
@@ -685,6 +734,8 @@ main() {
         fi
     fi
 
+    step_begin "Detecting your Linux distribution"
+    detect_distro
 
     # Check Secure Boot status
     local secure_boot_enabled=false
@@ -698,10 +749,10 @@ main() {
         exit 0
     fi
 
-    # Verify network before doing anything that requires it
+    step_begin "Checking network"
     check_network
 
-    # Check for existing driver and remove if found
+    step_begin "Checking for existing driver"
     if check_existing_driver; then
         if get_user_confirmation "Existing driver installation found. Remove and reinstall?" "y"; then
             update_status "Removing existing driver"
@@ -712,9 +763,11 @@ main() {
             log_info "Keeping existing installation. Exiting."
             exit 0
         fi
+    else
+        log_info "No existing driver found"
     fi
 
-    # Check and install kernel headers
+    step_begin "Installing kernel headers"
     update_status "Checking kernel headers"
     if ! check_and_install_kernel_headers; then
         update_status "Kernel headers installation failed"
@@ -722,7 +775,7 @@ main() {
         exit 1
     fi
 
-    # System updates
+    # System updates (inline - not a labeled step, optional per user)
     if check_updates_required; then
         if get_user_confirmation "Install system updates before driver installation?" "y"; then
             update_status "Installing system updates"
@@ -747,7 +800,7 @@ main() {
         fi
     fi
 
-    # Install packages
+    step_begin "Installing packages"
     update_status "Installing required packages"
     if ! install_packages; then
         update_status "Package installation failed"
@@ -755,7 +808,7 @@ main() {
         exit 1
     fi
 
-    # Clone repository
+    step_begin "Cloning driver repository"
     update_status "Cloning driver repository"
     if ! clone_repository; then
         update_status "Repository clone failed"
@@ -763,7 +816,7 @@ main() {
         exit 1
     fi
 
-    # Install driver via DKMS
+    step_begin "Compiling driver with DKMS (this can take a minute)"
     update_status "Installing driver via DKMS"
     if ! install_driver_via_dkms; then
         update_status "Driver installation failed"
@@ -771,7 +824,7 @@ main() {
         exit 1
     fi
 
-    # Verify
+    step_begin "Verifying installation"
     update_status "Verifying installation"
     if ! verify_installation; then
         log_warning "Installation verification reported issues. The driver may still work - reboot and check 'lsmod | grep rtw'. If WiFi doesn't come up, re-run with -u to uninstall and try again."
