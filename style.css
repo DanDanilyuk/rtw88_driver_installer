@@ -617,6 +617,32 @@ footer a:hover {
 
 /* ── Accessibility ── */
 
+.skip-link {
+    position: absolute;
+    top: -100px;
+    left: 0;
+    background: var(--surface);
+    color: var(--primary);
+    padding: 10px 16px;
+    z-index: 1000;
+    border: 1px solid var(--primary);
+    border-radius: 0 0 8px 0;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: top 0.15s;
+}
+
+.skip-link:focus {
+    top: 0;
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
 :focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
