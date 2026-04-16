@@ -33,10 +33,12 @@ readonly NC='\033[0m'
 CLEANUP_ON_EXIT=true
 SUDO_KEEPALIVE_PID=""
 APT_UPDATE_DONE=false
+DRY_RUN=false
+LOG_FILE_EXPLICIT=false
 
 # Step counter (updated by step_begin). STEP_TOTAL must match the number of
 # step_begin() calls in main(); bump this when adding or removing a phase.
-STEP_TOTAL=8
+STEP_TOTAL=9
 STEP_CURRENT=0
 
 # Note: LOG_FILE is initialized near the top of the script (before the ERR trap)
@@ -48,8 +50,8 @@ export DEBIAN_FRONTEND=noninteractive
 # --- Status & Logging Functions ---
 update_status() {
     local message="$1"
-    sudo mkdir -p "$(dirname "$STATUS_FILE")"
-    echo "$(date +"%Y-%m-%d %T") - $message" | sudo tee -a "$STATUS_FILE" > /dev/null
+    run sudo mkdir -p "$(dirname "$STATUS_FILE")"
+    echo "$(date +"%Y-%m-%d %T") - $message" | run sudo tee -a "$STATUS_FILE" > /dev/null
 }
 
 log_info() {
@@ -68,6 +70,18 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $*"
 }
 
+# run <cmd> [args...] - execute a destructive command or, in dry-run mode,
+# print what would have been executed without actually running it. The
+# dry-run announcement goes to stderr so callers that redirect stdout
+# (e.g. `... | run sudo tee -a FILE > /dev/null`) still surface the notice.
+run() {
+    if [[ "$DRY_RUN" == true ]]; then
+        echo -e "${YELLOW}[DRY-RUN]${NC} $*" >&2
+        return 0
+    fi
+    "$@"
+}
+
 step_begin() {
     STEP_CURRENT=$((STEP_CURRENT + 1))
     echo ""
@@ -79,10 +93,12 @@ show_help() {
     echo "Usage: sudo ./install.sh [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  -h, --help         Show this help message"
-    echo "  -v, --version      Show script version"
-    echo "  -y, --yes          Skip confirmation prompts (unattended install)"
-    echo "  -u, --uninstall    Uninstall the driver and DKMS entries"
+    echo "  -h, --help           Show this help message"
+    echo "  -v, --version        Show script version"
+    echo "  -y, --yes            Skip confirmation prompts (unattended install)"
+    echo "  -u, --uninstall      Uninstall the driver and DKMS entries"
+    echo "  -n, --dry-run        Show what would run without making any changes"
+    echo "      --log-file PATH  Write the install log to PATH (default: /var/log/rtw88-install.log)"
     echo ""
     exit 0
 }
@@ -111,6 +127,19 @@ while [[ $# -gt 0 ]]; do
             UNINSTALL_MODE=true
             shift
             ;;
+        -n|--dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --log-file)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --log-file requires a PATH argument" >&2
+                exit 1
+            fi
+            LOG_FILE="$2"
+            LOG_FILE_EXPLICIT=true
+            shift 2
+            ;;
         *)
             echo "Unknown option: $1" >&2
             show_help
@@ -124,7 +153,7 @@ apt_update_once() {
     if [[ "$APT_UPDATE_DONE" == true ]]; then
         return 0
     fi
-    sudo apt-get update -qq 2>/dev/null || true
+    run sudo apt-get update -qq 2>/dev/null || true
     APT_UPDATE_DONE=true
 }
 
@@ -142,10 +171,10 @@ pkg_installed() {
 # On Debian, ensures `apt-get update` has run once this session.
 pkg_install() {
     if [[ "$DISTRO_FAMILY" == "arch" ]]; then
-        sudo pacman -S --noconfirm --needed "$@"
+        run sudo pacman -S --noconfirm --needed "$@"
     else
         apt_update_once
-        sudo apt-get install -y "$@"
+        run sudo apt-get install -y "$@"
     fi
 }
 
@@ -262,6 +291,43 @@ check_network() {
     log_success "Network connectivity OK"
 }
 
+# detect_chipset - scan for Realtek WiFi hardware via lspci/lsusb and
+# report what was found. Does not abort if nothing is found; the user
+# may be installing before plugging in the adapter.
+detect_chipset() {
+    local found_devices=()
+    local supported_chipsets="(8723DE|8814AE|8821CE|8822BE|8822CE|8723DU|8811CU|8821CU|8822BU|8822CU|8811AU|8812AU|8812BU|8812CU|8814AU|8723CS|8723DS|8821CS|8822BS|8822CS)"
+    local LC_ALL=C
+
+    # Realtek PCIe vendor 10ec
+    if command -v lspci &>/dev/null; then
+        while IFS= read -r line; do
+            [[ -n "$line" ]] && found_devices+=("$line")
+        done < <(lspci -nn 2>/dev/null | grep -iE "realtek|10ec:" | grep -iE "wireless|network|wifi|${supported_chipsets}")
+    fi
+
+    # Realtek USB vendor 0bda
+    if command -v lsusb &>/dev/null; then
+        while IFS= read -r line; do
+            [[ -n "$line" ]] && found_devices+=("$line")
+        done < <(lsusb 2>/dev/null | grep -iE "realtek|0bda:" | grep -iE "wireless|network|wifi|${supported_chipsets}")
+    fi
+
+    if [[ ${#found_devices[@]} -eq 0 ]]; then
+        log_warning "No Realtek WiFi adapter detected via lspci/lsusb."
+        log_info "That's OK if you haven't plugged in a USB adapter yet, or if you're installing ahead of time. Continuing."
+        return 1
+    fi
+
+    local noun="devices"
+    [[ ${#found_devices[@]} -eq 1 ]] && noun="device"
+    log_success "Detected ${#found_devices[@]} Realtek WiFi ${noun}:"
+    for dev in "${found_devices[@]}"; do
+        echo "  - $dev"
+    done
+    return 0
+}
+
 get_user_confirmation() {
     if [[ "$UNATTENDED" == true ]]; then
         return 0
@@ -336,7 +402,7 @@ remove_existing_driver() {
 
         for module in $modules; do
             log_info "  Unloading: $module"
-            sudo modprobe -r "$module" 2>/dev/null || log_warning "Could not unload $module"
+            run sudo modprobe -r "$module" 2>/dev/null || log_warning "Could not unload $module"
         done
     fi
 
@@ -348,7 +414,7 @@ remove_existing_driver() {
             | while read -r spec; do
                 [[ -n "$spec" ]] || continue
                 log_info "  Removing: $spec"
-                sudo dkms remove "$spec" --all 2>/dev/null || true
+                run sudo dkms remove "$spec" --all 2>/dev/null || true
             done
 
         log_success "DKMS entries removed"
@@ -359,13 +425,13 @@ remove_existing_driver() {
     for src_dir in /usr/src/${DKMS_MODULE_NAME}-*; do
         [[ -d "$src_dir" ]] || continue
         log_info "Cleaning up old source directory: $src_dir"
-        sudo rm -rf "$src_dir" 2>/dev/null || true
+        run sudo rm -rf "$src_dir" 2>/dev/null || true
     done
 
     # Remove old config file if exists
     if [[ -f "/etc/modprobe.d/rtw88.conf" ]]; then
         log_info "Removing old configuration file..."
-        sudo rm -f /etc/modprobe.d/rtw88.conf
+        run sudo rm -f /etc/modprobe.d/rtw88.conf
     fi
 }
 
@@ -515,13 +581,19 @@ clone_repository() {
     if [[ -d "$REPO_DIR" ]]; then
         log_warning "Repository directory already exists"
         if get_user_confirmation "Remove and re-clone?"; then
-            rm -rf "$REPO_DIR"
+            run rm -rf "$REPO_DIR"
         else
             return 1
         fi
     fi
 
     log_info "Cloning rtw88 driver repository..."
+    if [[ "$DRY_RUN" == true ]]; then
+        echo -e "${YELLOW}[DRY-RUN]${NC} git clone --depth 1 ${REPO_URL} ${REPO_DIR}"
+        log_info "Skipping DKMS version detection in dry-run (no source tree to read)."
+        return 0
+    fi
+
     local clone_output
     if clone_output=$(git clone --depth 1 "$REPO_URL" "$REPO_DIR" 2>&1); then
         log_success "Repository cloned successfully"
@@ -561,6 +633,14 @@ install_driver_via_dkms() {
     log_info "  Kernel: $(uname -r)"
     log_info "  Architecture: $(uname -m)"
 
+    if [[ "$DRY_RUN" == true ]]; then
+        echo -e "${YELLOW}[DRY-RUN]${NC} cd ${REPO_DIR}"
+        echo -e "${YELLOW}[DRY-RUN]${NC} sudo dkms install \$PWD"
+        echo -e "${YELLOW}[DRY-RUN]${NC} sudo make install_fw"
+        echo -e "${YELLOW}[DRY-RUN]${NC} sudo cp rtw88.conf /etc/modprobe.d/"
+        return 0
+    fi
+
     cd "$REPO_DIR" || { log_error "Failed to enter repository directory"; return 1; }
 
     # Install via DKMS
@@ -592,6 +672,11 @@ install_driver_via_dkms() {
 
 verify_installation() {
     log_info "Verifying installation..."
+
+    if [[ "$DRY_RUN" == true ]]; then
+        echo -e "${YELLOW}[DRY-RUN]${NC} Would verify DKMS module registration and /etc/modprobe.d/rtw88.conf"
+        return 0
+    fi
 
     if dkms status 2>/dev/null | grep -q "${DKMS_MODULE_NAME}.*installed"; then
         log_success "DKMS module registered and installed:"
@@ -675,7 +760,7 @@ cleanup() {
 
     if [[ "$CLEANUP_ON_EXIT" == true ]] && [[ -d "$REPO_DIR" ]]; then
         log_info "Cleaning up repository..."
-        rm -rf "$REPO_DIR"
+        run rm -rf "$REPO_DIR"
     fi
 }
 
@@ -710,16 +795,24 @@ main() {
     check_sudo
     acquire_install_lock
 
-    # Set up log file mirror; fall back to /tmp if /var/log isn't writable.
-    if ! sudo touch "$LOG_FILE" 2>/dev/null; then
-        LOG_FILE="/tmp/rtw88-install-$$.log"
-        : > "$LOG_FILE" 2>/dev/null || true
+    if [[ "$DRY_RUN" == true ]]; then
+        log_info "Dry-run mode: no changes will be made and no log file will be written."
+    else
+        # Set up log file mirror; fall back to /tmp if the requested path isn't writable.
+        if ! sudo touch "$LOG_FILE" 2>/dev/null; then
+            local fallback_log="/tmp/rtw88-install-$$.log"
+            if [[ "$LOG_FILE_EXPLICIT" == true ]]; then
+                log_warning "Could not write to user-specified log file (${LOG_FILE}). Falling back to ${fallback_log}."
+            fi
+            LOG_FILE="$fallback_log"
+            : > "$LOG_FILE" 2>/dev/null || true
+        fi
+        sudo chmod 0644 "$LOG_FILE" 2>/dev/null || true
+        # Mirror all output to $LOG_FILE while still showing colors on the terminal.
+        # `stdbuf -oL` keeps tee line-buffered so `read -p` prompts flush immediately.
+        exec > >(stdbuf -oL sudo tee -a "$LOG_FILE") 2>&1
+        log_info "Saving a full log to: $LOG_FILE (useful if something fails)"
     fi
-    sudo chmod 0644 "$LOG_FILE" 2>/dev/null || true
-    # Mirror all output to $LOG_FILE while still showing colors on the terminal.
-    # `stdbuf -oL` keeps tee line-buffered so `read -p` prompts flush immediately.
-    exec > >(stdbuf -oL sudo tee -a "$LOG_FILE") 2>&1
-    log_info "Saving a full log to: $LOG_FILE (useful if something fails)"
 
     if [[ "$UNINSTALL_MODE" == true ]]; then
         detect_distro
@@ -736,6 +829,9 @@ main() {
 
     step_begin "Detecting your Linux distribution"
     detect_distro
+
+    step_begin "Detecting Realtek hardware"
+    detect_chipset || true
 
     # Check Secure Boot status
     local secure_boot_enabled=false
@@ -781,9 +877,9 @@ main() {
             update_status "Installing system updates"
             log_info "Upgrading system packages..."
             if [[ "$DISTRO_FAMILY" == "arch" ]]; then
-                sudo pacman -Syu --noconfirm
+                run sudo pacman -Syu --noconfirm
             else
-                sudo apt-get upgrade -y
+                run sudo apt-get upgrade -y
             fi
             log_success "System updated"
 
@@ -791,7 +887,7 @@ main() {
                 log_warning "System reboot required after updates"
                 if get_user_confirmation "Reboot now and run script again after reboot?"; then
                     update_status "Rebooting for system updates"
-                    sudo reboot
+                    run sudo reboot
                 else
                     log_error "A reboot is required before the driver can be built. Reboot manually, then re-run this script."
                     exit 1
@@ -849,10 +945,16 @@ main() {
     # Reboot prompt
     if get_user_confirmation "Reboot now to complete installation?" "y"; then
         update_status "Rebooting after successful installation"
-        sudo reboot
+        run sudo reboot
     else
         update_status "Installation complete - manual reboot pending"
         log_warning "Remember to reboot before using your WiFi adapter."
+    fi
+
+    if [[ "$DRY_RUN" == true ]]; then
+        echo ""
+        log_success "Dry run complete. No changes were made."
+        exit 0
     fi
 }
 
