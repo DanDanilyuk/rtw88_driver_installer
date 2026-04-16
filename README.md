@@ -20,7 +20,11 @@ Run this command in your terminal:
 - **Automatic Dependency Resolution** - Installs all required packages
 - **Smart Kernel Header Detection** - Finds and installs correct headers for your system
 - **Raspberry Pi Optimized** - Automatic ARM/ARM64 configuration
-- **Existing Driver Cleanup** - Detects and removes conflicting installations
+- **Existing Driver Cleanup** - Detects and removes all registered `rtw88` DKMS versions before reinstalling
+- **Pre-flight Chipset Detection** - Scans `lspci` and `lsusb` for Realtek adapters and reports what it finds before installing
+- **Dry-run Mode** - Preview every action without touching the system (`--dry-run` / `-n`)
+- **Detailed Logging** - Every step is teed to `/var/log/rtw88-install.log` (or `--log-file PATH`) for easy debugging
+- **Concurrent-Run Protection** - A lock file prevents two installers from racing each other
 
 ## 🖥️ Supported Hardware
 
@@ -55,31 +59,32 @@ Run this command in your terminal:
 
 ## 🔧 Installation Process
 
-The script performs the following steps:
+The script walks through nine numbered steps, prefixed in output as `[N/9]`:
 
-1. **Pre-flight Checks**
+1. **Detecting your Linux distribution** - Identifies the package manager family (apt or pacman)
+2. **Detecting Realtek hardware** - Scans `lspci` and `lsusb` for supported chipsets (warns but does not abort if none are found)
+3. **Checking network** - Verifies connectivity to github.com
+4. **Checking for existing driver** - Removes every registered `rtw88` DKMS version and its source tree
+5. **Installing kernel headers** - Picks the right headers package for your kernel variant (standard, -lts, -zen, -hardened, raspberrypi)
+6. **Installing packages** - Installs `dkms`, `git`, and build tools (`build-essential` or `base-devel`)
+7. **Cloning driver repository** - Shallow-clones `lwfinger/rtw88` and auto-detects `PACKAGE_VERSION` from its `dkms.conf`
+8. **Compiling driver with DKMS** - Builds, installs firmware, and writes the modprobe config
+9. **Verifying installation** - Confirms the DKMS module is registered and the config file is in place
 
-   - Verifies non-root execution
-   - Checks for Secure Boot status
-   - Detects existing driver installations
+Pre-flight: the script also acquires `/var/lock/rtw88-install.lock` via `flock`, sets up `/var/log/rtw88-install.log` (falling back to `/tmp` if the system log directory is not writable), and runs a keepalive loop so it does not re-prompt for sudo during long builds.
 
-2. **System Preparation**
+## 🎛️ Command-Line Options
 
-   - Installs kernel headers for your current kernel
-   - Installs required build tools and dependencies
-   - Optional system updates
+```
+-h, --help           Show this help message
+-v, --version        Show script version
+-y, --yes            Skip confirmation prompts (unattended install)
+-u, --uninstall      Uninstall the driver and DKMS entries
+-n, --dry-run        Show what would run without making any changes
+    --log-file PATH  Write the install log to PATH (default: /var/log/rtw88-install.log)
+```
 
-3. **Driver Installation**
-
-   - Clones the rtw88 driver repository
-   - Builds and installs via DKMS
-   - Installs firmware files
-   - Configures modprobe settings
-
-4. **Verification**
-   - Confirms DKMS module registration
-   - Verifies configuration files
-   - Provides post-installation instructions
+`--dry-run` is useful for auditing the script before running it as root - every destructive command is printed with a `[DRY-RUN]` prefix instead of executing. Combine with `--yes` to preview a non-interactive install end-to-end.
 
 ## 🔐 Secure Boot
 
@@ -130,23 +135,30 @@ After installation and reboot:
 
 ## 🗑️ Uninstallation
 
-To remove the driver:
+Re-run the installer with `-u`:
 
 ```bash
-sudo dkms remove rtw88/0.6 --all
-sudo rm -rf /usr/src/rtw88-0.6
-sudo rm /etc/modprobe.d/rtw88.conf
+curl -fsSL https://raw.githubusercontent.com/DanDanilyuk/rtw88_driver_installer/main/install.sh | sudo bash -s -- -u
 ```
 
-Then reboot your system.
+Or, if you kept a local copy of the script:
+
+```bash
+sudo ./install.sh -u
+```
+
+This removes every registered `rtw88` DKMS version (not just the one this run installed), cleans up `/usr/src/rtw88-*`, and deletes the modprobe config. Then reboot.
 
 ## 🐛 Troubleshooting
+
+The full install log lives at `/var/log/rtw88-install.log` (or wherever `--log-file` pointed). That is the first place to look when something goes wrong - errors from `apt`/`pacman`, the DKMS build, and every prompt are captured there.
 
 ### Driver not loading after installation
 
 1. Ensure you've rebooted after installation
 2. If Secure Boot is enabled, verify MOK enrollment completed successfully
 3. Check kernel logs: `dmesg | grep rtw`
+4. Check the DKMS build log: `/var/lib/dkms/rtw88/<version>/build/make.log`
 
 ### Kernel headers not found
 
