@@ -11,7 +11,8 @@ trap 'echo -e "\033[0;31m[ERROR]\033[0m Script failed at line $LINENO (exit code
 readonly REPO_URL="https://github.com/lwfinger/rtw88.git"
 readonly REPO_DIR="rtw88"
 readonly DKMS_MODULE_NAME="rtw88"
-readonly DKMS_VERSION="0.6"
+# DKMS_VERSION is auto-detected from dkms.conf after clone; fallback retained below.
+DKMS_VERSION="0.6"
 readonly SCRIPT_VERSION="1.2.0"
 readonly STATUS_FILE="/var/lib/driver_install/status.flag"
 
@@ -27,6 +28,11 @@ readonly NC='\033[0m'
 
 # State tracking
 CLEANUP_ON_EXIT=true
+SUDO_KEEPALIVE_PID=""
+APT_UPDATE_DONE=false
+
+# Avoid interactive apt prompts for config files
+export DEBIAN_FRONTEND=noninteractive
 
 # --- Status & Logging Functions ---
 update_status() {
@@ -97,19 +103,12 @@ done
 
 
 # --- Helper Functions ---
-# Spinner for long running operations
-spinner() {
-    local pid=$1
-    local delay=0.1
-    local spinstr='|/-\'
-    while kill -0 "$pid" 2>/dev/null; do
-        local temp=${spinstr#?}
-        printf " [%c]  " "$spinstr"
-        spinstr=$temp${spinstr%"$temp"}
-        sleep "$delay"
-        printf "\b\b\b\b\b\b"
-    done
-    printf "      \b\b\b\b\b\b"
+apt_update_once() {
+    if [[ "$APT_UPDATE_DONE" == true ]]; then
+        return 0
+    fi
+    sudo apt-get update -qq 2>/dev/null || true
+    APT_UPDATE_DONE=true
 }
 
 print_banner() {
@@ -174,8 +173,9 @@ check_sudo() {
         log_info "This script requires sudo privileges"
         sudo -v || { log_error "Failed to obtain sudo privileges"; exit 1; }
     fi
-    # Keep sudo alive
+    # Keep sudo alive; track PID so cleanup() can terminate it on exit.
     while true; do sudo -n true; sleep 50; done 2>/dev/null &
+    SUDO_KEEPALIVE_PID=$!
 }
 
 check_network() {
@@ -279,17 +279,23 @@ remove_existing_driver() {
     if dkms status 2>/dev/null | grep -q "${DKMS_MODULE_NAME}"; then
         log_info "Removing DKMS installation(s)..."
 
-        # Remove rtw88 from DKMS
-        sudo dkms remove "${DKMS_MODULE_NAME}/${DKMS_VERSION}" --all 2>/dev/null || true
+        dkms status 2>/dev/null | awk -F'[,/: ]' '/rtw88/ {print $1"/"$2}' | sort -u \
+            | while read -r spec; do
+                [[ -n "$spec" ]] || continue
+                log_info "  Removing: $spec"
+                sudo dkms remove "$spec" --all 2>/dev/null || true
+            done
 
         log_success "DKMS entries removed"
     fi
 
-    # Clean up source directories
-    if [[ -d "/usr/src/${DKMS_MODULE_NAME}-${DKMS_VERSION}" ]]; then
-        log_info "Cleaning up old source directory..."
-        sudo rm -rf "/usr/src/${DKMS_MODULE_NAME}-${DKMS_VERSION}" 2>/dev/null || true
-    fi
+    # Clean up source directories for any rtw88-* version
+    local src_dir
+    for src_dir in /usr/src/${DKMS_MODULE_NAME}-*; do
+        [[ -d "$src_dir" ]] || continue
+        log_info "Cleaning up old source directory: $src_dir"
+        sudo rm -rf "$src_dir" 2>/dev/null || true
+    done
 
     # Remove old config file if exists
     if [[ -f "/etc/modprobe.d/rtw88.conf" ]]; then
@@ -320,8 +326,9 @@ check_and_install_kernel_headers() {
     log_warning "Kernel headers not found, attempting to install..."
 
     if [[ "$DISTRO_FAMILY" == "arch" ]]; then
-        # Arch-based: install linux-headers matching the running kernel
-        sudo pacman -Sy --noconfirm 2>/dev/null || true
+        # Arch-based: install linux-headers matching the running kernel.
+        # Do NOT run `pacman -Sy` standalone (partial-upgrade anti-pattern);
+        # full upgrades are handled by check_updates_required().
 
         # Determine correct headers package based on kernel variant
         local headers_pkg="linux-headers"
@@ -345,7 +352,7 @@ check_and_install_kernel_headers() {
     fi
 
     # Debian-based path
-    sudo apt-get update -qq 2>/dev/null || true
+    apt_update_once
 
     # Try Raspberry Pi headers if on RPi
     if is_raspberry_pi; then
@@ -393,13 +400,13 @@ check_updates_required() {
     fi
 
     # Debian-based path
-    sudo apt-get update -qq 2>/dev/null || true
+    apt_update_once
 
     local upgradable
-    upgradable=$(apt list --upgradable 2>/dev/null | grep -c "upgradable" || true)
+    upgradable=$(apt-get -s upgrade 2>/dev/null | grep -c "^Inst " || true)
 
-    if [[ $upgradable -gt 1 ]]; then
-        log_warning "System has $((upgradable - 1)) packages to upgrade"
+    if [[ $upgradable -gt 0 ]]; then
+        log_warning "System has ${upgradable} packages to upgrade"
         return 0
     fi
 
@@ -480,11 +487,34 @@ clone_repository() {
     local clone_output
     if clone_output=$(git clone --depth 1 "$REPO_URL" "$REPO_DIR" 2>&1); then
         log_success "Repository cloned successfully"
+        detect_dkms_version
         return 0
     else
         log_error "Failed to clone repository"
         log_error "$clone_output"
         return 1
+    fi
+}
+
+detect_dkms_version() {
+    local dkms_conf="${REPO_DIR}/dkms.conf"
+    if [[ ! -f "$dkms_conf" ]]; then
+        log_warning "dkms.conf not found; using fallback version ${DKMS_VERSION}"
+        return 0
+    fi
+
+    local parsed
+    parsed=$(grep -E '^[[:space:]]*PACKAGE_VERSION[[:space:]]*=' "$dkms_conf" \
+        | head -n 1 \
+        | sed -E 's/^[[:space:]]*PACKAGE_VERSION[[:space:]]*=[[:space:]]*//; s/[[:space:]]*#.*$//' \
+        | sed -E 's/^["'\'']//; s/["'\'']$//' \
+        | tr -d '[:space:]')
+
+    if [[ -n "$parsed" ]]; then
+        DKMS_VERSION="$parsed"
+        log_info "Detected DKMS version from dkms.conf: ${DKMS_VERSION}"
+    else
+        log_warning "Could not parse PACKAGE_VERSION from dkms.conf (upstream format may have changed); using fallback ${DKMS_VERSION}. Installation should still work."
     fi
 }
 
@@ -499,7 +529,7 @@ install_driver_via_dkms() {
     if sudo dkms install "$PWD" 2>&1; then
         log_success "Driver built and installed via DKMS"
     else
-        log_error "DKMS installation failed"
+        log_error "DKMS build failed. Check the build log at /var/lib/dkms/${DKMS_MODULE_NAME}/${DKMS_VERSION}/build/make.log for compiler errors."
         return 1
     fi
 
@@ -508,7 +538,7 @@ install_driver_via_dkms() {
     if sudo make install_fw 2>&1; then
         log_success "Firmware installed"
     else
-        log_warning "Firmware installation had issues (may not be critical)"
+        log_warning "Firmware install reported errors. Usually harmless - if WiFi doesn't work after reboot, check 'dmesg | grep rtw' for missing firmware messages."
     fi
 
     # Copy configuration file
@@ -598,6 +628,13 @@ show_post_install_instructions() {
 }
 
 cleanup() {
+    # Stop the sudo keepalive loop if we started one.
+    if [[ -n "${SUDO_KEEPALIVE_PID:-}" ]] && kill -0 "$SUDO_KEEPALIVE_PID" 2>/dev/null; then
+        kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+        wait "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+        SUDO_KEEPALIVE_PID=""
+    fi
+
     if [[ "$CLEANUP_ON_EXIT" == true ]] && [[ -d "$REPO_DIR" ]]; then
         log_info "Cleaning up repository..."
         rm -rf "$REPO_DIR"
@@ -605,8 +642,26 @@ cleanup() {
 }
 
 # --- Main Execution ---
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
 
+
+acquire_install_lock() {
+    local lock_file="/var/lock/rtw88-install.lock"
+
+    # Ensure the lock file exists and is writable by the current user;
+    # fall back to /tmp if /var/lock isn't usable.
+    if ! { : > "$lock_file"; } 2>/dev/null; then
+        if ! sudo touch "$lock_file" 2>/dev/null || ! sudo chmod 0666 "$lock_file" 2>/dev/null; then
+            lock_file="/tmp/rtw88-install.lock"
+        fi
+    fi
+
+    exec 200>"$lock_file"
+    if ! flock -n 200; then
+        log_error "Another installer is already running (lock: ${lock_file}). Wait for it to finish, or if no installer is running, delete the lock file and retry."
+        exit 1
+    fi
+}
 
 main() {
     local start_time
@@ -615,6 +670,7 @@ main() {
     print_banner
     check_root
     check_sudo
+    acquire_install_lock
     detect_distro
 
     if [ "$UNINSTALL_MODE" = true ]; then
@@ -684,7 +740,7 @@ main() {
                     update_status "Rebooting for system updates"
                     sudo reboot
                 else
-                    log_error "Reboot required before continuing"
+                    log_error "A reboot is required before the driver can be built. Reboot manually, then re-run this script."
                     exit 1
                 fi
             fi
@@ -718,7 +774,7 @@ main() {
     # Verify
     update_status "Verifying installation"
     if ! verify_installation; then
-        log_warning "Installation verification had issues"
+        log_warning "Installation verification reported issues. The driver may still work - reboot and check 'lsmod | grep rtw'. If WiFi doesn't come up, re-run with -u to uninstall and try again."
     fi
 
     # Keep repo option
