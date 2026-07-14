@@ -16,7 +16,7 @@ readonly REPO_DIR="rtw88"
 readonly DKMS_MODULE_NAME="rtw88"
 # DKMS_VERSION is auto-detected from dkms.conf after clone; fallback retained below.
 DKMS_VERSION="0.6"
-readonly SCRIPT_VERSION="1.2.0"
+readonly SCRIPT_VERSION="1.3.0"
 readonly STATUS_FILE="/var/lib/driver_install/status.flag"
 
 # Distro family detection (set during detect_distro)
@@ -49,8 +49,9 @@ export DEBIAN_FRONTEND=noninteractive
 
 # --- Status & Logging Functions ---
 update_status() {
-    local message="$1"
-    run sudo mkdir -p "$(dirname "$STATUS_FILE")"
+    local message="$1" status_dir
+    status_dir=$(dirname "$STATUS_FILE")
+    [[ -d "$status_dir" ]] || run sudo mkdir -p "$status_dir"
     echo "$(date +"%Y-%m-%d %T") - $message" | run sudo tee -a "$STATUS_FILE" > /dev/null
 }
 
@@ -90,16 +91,18 @@ step_begin() {
 
 # CLI Arguments
 show_help() {
-    echo "Usage: sudo ./install.sh [OPTIONS]"
-    echo ""
-    echo "Options:"
-    echo "  -h, --help           Show this help message"
-    echo "  -v, --version        Show script version"
-    echo "  -y, --yes            Skip confirmation prompts (unattended install)"
-    echo "  -u, --uninstall      Uninstall the driver and DKMS entries"
-    echo "  -n, --dry-run        Show what would run without making any changes"
-    echo "      --log-file PATH  Write the install log to PATH (default: /var/log/rtw88-install.log)"
-    echo ""
+    cat <<'EOF'
+Usage: sudo ./install.sh [OPTIONS]
+
+Options:
+  -h, --help           Show this help message
+  -v, --version        Show script version
+  -y, --yes            Skip confirmation prompts (unattended install)
+  -u, --uninstall      Uninstall the driver and DKMS entries
+  -n, --dry-run        Show what would run without making any changes
+      --log-file PATH  Write the install log to PATH (default: /var/log/rtw88-install.log)
+
+EOF
     exit 0
 }
 
@@ -191,25 +194,18 @@ pkg_search_exact() {
 
 print_banner() {
     # Box is 61 columns wide overall (59-char interior between ║ borders).
-    local inner=59
-    local title="RTW88 WiFi 5 Driver Installer (v${SCRIPT_VERSION})"
-    local subtitle="Automated DKMS setup for Linux"
-    local border=""
-    local i
-    for ((i = 0; i < inner; i++)); do
-        border+="═"
-    done
+    local inner=59 border line
+    border=$(printf '═%.0s' {1..59})
 
     echo -e "${GREEN}"
     echo "╔${border}╗"
-    printf "║%*s%s%*s║\n" \
-        $(( (inner - ${#title}) / 2 )) "" \
-        "$title" \
-        $(( inner - ${#title} - (inner - ${#title}) / 2 )) ""
-    printf "║%*s%s%*s║\n" \
-        $(( (inner - ${#subtitle}) / 2 )) "" \
-        "$subtitle" \
-        $(( inner - ${#subtitle} - (inner - ${#subtitle}) / 2 )) ""
+    for line in "RTW88 WiFi 5 Driver Installer (v${SCRIPT_VERSION})" \
+                "Automated DKMS setup for Linux"; do
+        printf "║%*s%s%*s║\n" \
+            $(( (inner - ${#line}) / 2 )) "" \
+            "$line" \
+            $(( inner - ${#line} - (inner - ${#line}) / 2 )) ""
+    done
     echo "╚${border}╝"
     echo -e "${NC}"
 }
@@ -274,44 +270,33 @@ check_sudo() {
 
 check_network() {
     log_info "Checking network connectivity..."
-    if command -v curl &>/dev/null; then
-        if ! curl -sf --max-time 10 https://github.com > /dev/null 2>&1; then
-            log_error "Cannot reach github.com. Check your internet connection."
-            exit 1
-        fi
-    elif command -v wget &>/dev/null; then
-        if ! wget -q --timeout=10 --spider https://github.com 2>/dev/null; then
-            log_error "Cannot reach github.com. Check your internet connection."
-            exit 1
-        fi
-    else
+    if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
         log_warning "Cannot verify network (no curl or wget). Continuing anyway..."
         return 0
     fi
-    log_success "Network connectivity OK"
+    if curl -sf --max-time 10 https://github.com -o /dev/null 2>/dev/null \
+        || wget -q --timeout=10 --spider https://github.com 2>/dev/null; then
+        log_success "Network connectivity OK"
+    else
+        log_error "Cannot reach github.com. Check your internet connection."
+        exit 1
+    fi
 }
 
 # detect_chipset - scan for Realtek WiFi hardware via lspci/lsusb and
 # report what was found. Does not abort if nothing is found; the user
 # may be installing before plugging in the adapter.
 detect_chipset() {
-    local found_devices=()
+    local -x LC_ALL=C
     local supported_chipsets="(8723DE|8814AE|8821CE|8822BE|8822CE|8723DU|8811CU|8821CU|8822BU|8822CU|8811AU|8812AU|8812BU|8812CU|8814AU|8723CS|8723DS|8821CS|8822BS|8822CS)"
-    local LC_ALL=C
+    local found_devices=()
 
-    # Realtek PCIe vendor 10ec
-    if command -v lspci &>/dev/null; then
-        while IFS= read -r line; do
-            [[ -n "$line" ]] && found_devices+=("$line")
-        done < <(lspci -nn 2>/dev/null | grep -iE "realtek|10ec:" | grep -iE "wireless|network|wifi|${supported_chipsets}")
-    fi
-
-    # Realtek USB vendor 0bda
-    if command -v lsusb &>/dev/null; then
-        while IFS= read -r line; do
-            [[ -n "$line" ]] && found_devices+=("$line")
-        done < <(lsusb 2>/dev/null | grep -iE "realtek|0bda:" | grep -iE "wireless|network|wifi|${supported_chipsets}")
-    fi
+    # Realtek is PCIe vendor 10ec, USB vendor 0bda.
+    mapfile -t found_devices < <(
+        { lspci -nn 2>/dev/null || true; lsusb 2>/dev/null || true; } \
+            | grep -iE "realtek|10ec:|0bda:" \
+            | grep -iE "wireless|network|wifi|${supported_chipsets}"
+    )
 
     if [[ ${#found_devices[@]} -eq 0 ]]; then
         log_warning "No Realtek WiFi adapter detected via lspci/lsusb."
@@ -322,9 +307,7 @@ detect_chipset() {
     local noun="devices"
     [[ ${#found_devices[@]} -eq 1 ]] && noun="device"
     log_success "Detected ${#found_devices[@]} Realtek WiFi ${noun}:"
-    for dev in "${found_devices[@]}"; do
-        echo "  - $dev"
-    done
+    printf '  - %s\n' "${found_devices[@]}"
     return 0
 }
 
@@ -367,28 +350,25 @@ check_secure_boot() {
 }
 
 check_existing_driver() {
-    local found_issues=false
+    local found_issues=false out
 
     # Check if any rtw88 modules are loaded
-    if lsmod | grep -q "^rtw_"; then
+    out=$(lsmod | awk '/^rtw_/ {print "  - " $1}')
+    if [[ -n "$out" ]]; then
         log_warning "RTW88 driver module(s) currently loaded:"
-        lsmod | grep "^rtw_" | awk '{print "  - " $1}'
+        echo "$out"
         found_issues=true
     fi
 
     # Check DKMS installations
-    if dkms status 2>/dev/null | grep -q "${DKMS_MODULE_NAME}"; then
+    out=$(dkms status 2>/dev/null | grep "${DKMS_MODULE_NAME}" || true)
+    if [[ -n "$out" ]]; then
         log_warning "DKMS installation(s) found:"
-        dkms status 2>/dev/null | grep "${DKMS_MODULE_NAME}" | while read -r line; do
-            log_info "  - $line"
-        done
+        echo "$out" | sed 's/^/  - /'
         found_issues=true
     fi
 
-    if [[ "$found_issues" == true ]]; then
-        return 0
-    fi
-    return 1
+    [[ "$found_issues" == true ]]
 }
 
 remove_existing_driver() {
@@ -459,7 +439,7 @@ check_and_install_kernel_headers() {
     if [[ "$DISTRO_FAMILY" == "arch" ]]; then
         # Determine correct headers package based on kernel variant.
         # NOTE: do NOT run `pacman -Sy` standalone (partial-upgrade anti-pattern);
-        # full upgrades are handled by check_updates_required().
+        # if the package can't be found, a full `pacman -Syu` is the user's fix.
         local headers_pkg="linux-headers"
         if [[ "$kernel_version" == *"-lts"* ]]; then
             headers_pkg="linux-lts-headers"
@@ -476,7 +456,7 @@ check_and_install_kernel_headers() {
         fi
 
         log_error "Could not install kernel headers"
-        log_error "Try: sudo pacman -S ${headers_pkg}"
+        log_error "Try: sudo pacman -Syu ${headers_pkg}"
         return 1
     fi
 
@@ -491,53 +471,22 @@ check_and_install_kernel_headers() {
         fi
     fi
 
-    # Try the exact headers package matching the running kernel
-    local headers_pkg="linux-headers-${kernel_version}"
-    if pkg_search_exact "$headers_pkg"; then
+    # Try the exact package for the running kernel, then the distro metapackage
+    # (linux-headers-amd64 style on Debian/Kali, linux-headers-generic on Ubuntu).
+    apt_update_once
+    local headers_pkg
+    for headers_pkg in "linux-headers-${kernel_version}" \
+                       "linux-headers-$(dpkg --print-architecture)" \
+                       "linux-headers-generic"; do
+        pkg_search_exact "$headers_pkg" || continue
         if pkg_install "$headers_pkg"; then
-            log_success "Kernel headers installed"
+            log_success "Kernel headers installed (${headers_pkg})"
             return 0
         fi
-    fi
-
-    # Fall back to the generic metapackage
-    if pkg_install linux-headers-generic; then
-        log_success "Generic kernel headers installed"
-        return 0
-    fi
+    done
 
     log_error "Could not install kernel headers"
     log_error "Please install kernel headers manually for your distribution"
-    return 1
-}
-
-check_updates_required() {
-    log_info "Checking for system updates..."
-
-    if [[ "$DISTRO_FAMILY" == "arch" ]]; then
-        # On Arch, check if any packages are outdated
-        local outdated
-        outdated=$(pacman -Qu 2>/dev/null | wc -l || echo "0")
-        if [[ "$outdated" -gt 0 ]]; then
-            log_warning "System has ${outdated} packages to upgrade"
-            return 0
-        fi
-        log_success "System is up to date"
-        return 1
-    fi
-
-    # Debian-based path
-    apt_update_once
-
-    local upgradable
-    upgradable=$(apt-get -s upgrade 2>/dev/null | grep -c "^Inst " || true)
-
-    if [[ $upgradable -gt 0 ]]; then
-        log_warning "System has ${upgradable} packages to upgrade"
-        return 0
-    fi
-
-    log_success "System is up to date"
     return 1
 }
 
@@ -614,11 +563,8 @@ detect_dkms_version() {
     fi
 
     local parsed
-    parsed=$(grep -E '^[[:space:]]*PACKAGE_VERSION[[:space:]]*=' "$dkms_conf" \
-        | head -n 1 \
-        | sed -E 's/^[[:space:]]*PACKAGE_VERSION[[:space:]]*=[[:space:]]*//; s/[[:space:]]*#.*$//' \
-        | sed -E 's/^["'\'']//; s/["'\'']$//' \
-        | tr -d '[:space:]')
+    parsed=$(sed -nE 's/^[[:space:]]*PACKAGE_VERSION[[:space:]]*=[[:space:]]*["'\'']?([^"'\''#]*).*$/\1/p' "$dkms_conf" \
+        | head -n 1 | tr -d '[:space:]')
 
     if [[ -n "$parsed" ]]; then
         DKMS_VERSION="$parsed"
@@ -714,10 +660,10 @@ show_post_install_instructions() {
         # Detect Ubuntu vs other distros
         if [[ -f /var/lib/shim-signed/mok/MOK.der ]]; then
             log_info "   Ubuntu/Debian-based systems:"
-            echo "   ${YELLOW}sudo mokutil --import /var/lib/shim-signed/mok/MOK.der${NC}"
+            echo -e "   ${YELLOW}sudo mokutil --import /var/lib/shim-signed/mok/MOK.der${NC}"
         else
             log_info "   Other systems:"
-            echo "   ${YELLOW}sudo mokutil --import /var/lib/dkms/mok.pub${NC}"
+            echo -e "   ${YELLOW}sudo mokutil --import /var/lib/dkms/mok.pub${NC}"
         fi
 
         echo ""
@@ -833,11 +779,8 @@ main() {
     step_begin "Detecting Realtek hardware"
     detect_chipset || true
 
-    # Check Secure Boot status
-    local secure_boot_enabled=false
-    if check_secure_boot; then
-        secure_boot_enabled=true
-    fi
+    # Check Secure Boot status (informational; MOK steps are shown post-install)
+    check_secure_boot || true
 
     if ! get_user_confirmation "Ready to proceed with RTW88 driver installation?"; then
         update_status "Installation cancelled by user"
@@ -869,31 +812,6 @@ main() {
         update_status "Kernel headers installation failed"
         log_error "Cannot continue without kernel headers. Install them manually and re-run."
         exit 1
-    fi
-
-    # System updates (inline - not a labeled step, optional per user)
-    if check_updates_required; then
-        if get_user_confirmation "Install system updates before driver installation?" "y"; then
-            update_status "Installing system updates"
-            log_info "Upgrading system packages..."
-            if [[ "$DISTRO_FAMILY" == "arch" ]]; then
-                run sudo pacman -Syu --noconfirm
-            else
-                run sudo apt-get upgrade -y
-            fi
-            log_success "System updated"
-
-            if [[ -f /var/run/reboot-required ]]; then
-                log_warning "System reboot required after updates"
-                if get_user_confirmation "Reboot now and run script again after reboot?"; then
-                    update_status "Rebooting for system updates"
-                    run sudo reboot
-                else
-                    log_error "A reboot is required before the driver can be built. Reboot manually, then re-run this script."
-                    exit 1
-                fi
-            fi
-        fi
     fi
 
     step_begin "Installing packages"
