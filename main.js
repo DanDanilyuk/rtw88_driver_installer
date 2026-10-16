@@ -1,71 +1,115 @@
-function copyCommand() {
-    const commandEl = document.getElementById('installCommand');
-    const copyBtn = document.querySelector('.copy-btn');
-    const btnText = copyBtn.querySelector('.btn-text');
+// localStorage can throw (blocked storage, some private modes); never let
+// that break the page.
+function storageGet(key) {
+    try {
+        return localStorage.getItem(key);
+    } catch (e) {
+        return null;
+    }
+}
 
-    const text = commandEl.textContent;
-
-    navigator.clipboard.writeText(text).then(() => {
-        copyBtn.classList.add('copied');
-        btnText.textContent = 'Copied!';
-
-        setTimeout(() => {
-            copyBtn.classList.remove('copied');
-            btnText.textContent = 'Copy';
-        }, 2000);
-    }).catch(() => {
-        // Fallback: create a temporary textarea
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        try {
-            document.execCommand('copy');
-            copyBtn.classList.add('copied');
-            btnText.textContent = 'Copied!';
-            setTimeout(() => {
-                copyBtn.classList.remove('copied');
-                btnText.textContent = 'Copy';
-            }, 2000);
-        } catch (e) {
-            alert('Failed to copy. Please copy manually.');
-        }
-        document.body.removeChild(ta);
-    });
+function storageSet(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (e) {
+        // Ignore: the choice still applies for this visit.
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const themeToggleBtn = document.getElementById('themeToggleBtn');
-    const themeIcon = document.getElementById('themeIcon');
-    const themeText = document.getElementById('themeText');
+    // ── Copy install command ──
 
-    const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const commandEl = document.getElementById('installCommand');
+    const copyBtn = document.querySelector('.copy-btn');
+    const btnText = copyBtn.querySelector('.btn-text');
+    const copyStatus = document.getElementById('copyStatus');
+    const isMac = /Mac|iPhone|iPad/.test(navigator.platform || '');
+    let resetTimer;
 
-    // Apply theme, falling back to system preference if no manual override
-    function applyTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-        updateToggleButton(theme);
+    function showCopyResult(ok) {
+        clearTimeout(resetTimer);
+        copyBtn.classList.toggle('copied', ok);
+        btnText.textContent = ok ? 'Copied!' : (isMac ? 'Press ⌘C' : 'Press Ctrl+C');
+        copyStatus.textContent = ok
+            ? 'Install command copied to clipboard.'
+            : 'Copying failed. The command is selected, so press ' + (isMac ? 'Command+C' : 'Ctrl+C') + ' to copy it.';
+
+        resetTimer = setTimeout(() => {
+            copyBtn.classList.remove('copied');
+            btnText.textContent = 'Copy';
+            copyStatus.textContent = '';
+        }, ok ? 2000 : 4000);
     }
 
-    const savedTheme = localStorage.getItem('theme');
-    applyTheme(savedTheme || (systemDark.matches ? 'dark' : 'light'));
+    // Select the command so a manual copy is one keystroke away.
+    function selectCommand() {
+        const range = document.createRange();
+        range.selectNodeContents(commandEl);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
 
-    // Follow system changes automatically unless the user has manually chosen a theme
-    systemDark.addEventListener('change', (e) => {
-        if (!localStorage.getItem('theme')) {
-            applyTheme(e.matches ? 'dark' : 'light');
+    // Fallback for browsers without the async Clipboard API (or outside a
+    // secure context, where navigator.clipboard is undefined).
+    function legacyCopy(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '0';
+        ta.style.left = '0';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try {
+            ok = document.execCommand('copy');
+        } catch (e) {
+            ok = false;
+        }
+        document.body.removeChild(ta);
+        copyBtn.focus();
+        return ok;
+    }
+
+    copyBtn.addEventListener('click', () => {
+        const text = commandEl.textContent.trim();
+        const finish = (ok) => {
+            if (!ok) selectCommand();
+            showCopyResult(ok);
+        };
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(
+                () => finish(true),
+                () => finish(legacyCopy(text))
+            );
+        } else {
+            finish(legacyCopy(text));
         }
     });
 
-    themeToggleBtn.addEventListener('click', () => {
-        const currentTheme = document.documentElement.getAttribute('data-theme');
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    // ── Theme toggle ──
 
-        localStorage.setItem('theme', newTheme);
-        applyTheme(newTheme);
-    });
+    const root = document.documentElement;
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const themeIcon = document.getElementById('themeIcon');
+    const themeText = document.getElementById('themeText');
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+
+    // Remembered in memory too, so a manual choice sticks for this visit
+    // even when localStorage is unavailable.
+    let manualTheme = storageGet('theme');
+
+    function applyTheme(theme) {
+        root.setAttribute('data-theme', theme);
+        if (themeColorMeta) {
+            themeColorMeta.setAttribute('content', theme === 'light' ? '#f2f4f7' : '#13161b');
+        }
+        updateToggleButton(theme);
+    }
 
     function updateToggleButton(theme) {
         if (theme === 'light') {
@@ -78,4 +122,24 @@ document.addEventListener('DOMContentLoaded', () => {
             themeToggleBtn.setAttribute('aria-pressed', 'true');
         }
     }
+
+    applyTheme(manualTheme || (systemDark.matches ? 'dark' : 'light'));
+
+    // Follow system changes automatically unless the user has manually chosen a theme
+    const onSystemChange = (e) => {
+        if (!manualTheme) {
+            applyTheme(e.matches ? 'dark' : 'light');
+        }
+    };
+    if (systemDark.addEventListener) {
+        systemDark.addEventListener('change', onSystemChange);
+    } else if (systemDark.addListener) {
+        systemDark.addListener(onSystemChange);
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+        manualTheme = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        storageSet('theme', manualTheme);
+        applyTheme(manualTheme);
+    });
 });

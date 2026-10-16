@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RTW88 WiFi Driver Installer for Linux</title>
     <meta name="description" content="One-command installer for Realtek RTW88 WiFi 5 drivers on Linux. Supports Ubuntu, Debian, Kali, Arch, and Raspberry Pi OS with DKMS for automatic kernel update rebuilds.">
+    <link rel="canonical" href="https://dandanilyuk.github.io/rtw88_driver_installer/">
+    <meta name="theme-color" content="#13161b">
     <meta property="og:title" content="RTW88 WiFi Driver Installer for Linux">
     <meta property="og:description" content="One-command installer for Realtek RTW88 WiFi 5 drivers on Linux with DKMS support. Works on Ubuntu, Debian, Kali, Arch, and Raspberry Pi.">
     <meta property="og:type" content="website">
@@ -23,8 +25,12 @@
     <link rel="stylesheet" href="style.css">
     <script>
         (function() {
-            var t = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            document.documentElement.setAttribute('data-theme', t);
+            var root = document.documentElement, t = null;
+            root.classList.add('js');
+            try { t = localStorage.getItem('theme'); } catch (e) {}
+            t = t || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            root.setAttribute('data-theme', t);
+            document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#f2f4f7' : '#13161b');
         })();
     </script>
 </head>
@@ -33,7 +39,7 @@
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="container">
         <div class="theme-toggle">
-            <button id="themeToggleBtn" aria-label="Toggle dark mode" aria-pressed="false">
+            <button id="themeToggleBtn" type="button" aria-label="Toggle dark mode" aria-pressed="false">
                 <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -65,61 +71,62 @@
             </div>
         </header>
 
-        <main id="main-content">
+        <main id="main-content" tabindex="-1">
             <section class="card">
                 <h2>Quick Install</h2>
-                <p>Run this in your terminal. It auto-detects your distro and installs the right driver:</p>
+                <p>Run this in your terminal as your normal user (not with <code>sudo</code>). It detects your distro and installs everything the driver needs:</p>
                 <div class="terminal">
                     <div class="terminal-bar">
-                        <div class="terminal-dots">
+                        <div class="terminal-dots" aria-hidden="true">
                             <span></span><span></span><span></span>
                         </div>
-                        <span class="terminal-title">bash</span>
-                        <button class="copy-btn" onclick="copyCommand()" aria-label="Copy install command to clipboard">
+                        <span class="terminal-title" aria-hidden="true">bash</span>
+                        <button class="copy-btn" type="button" aria-label="Copy install command to clipboard">
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" /></svg>
                             <span class="btn-text">Copy</span>
                         </button>
                     </div>
                     <code class="terminal-body" id="installCommand">/bin/bash -c "$(curl -fsSL https://dandanilyuk.github.io/rtw88_driver_installer/install.sh)"</code>
                 </div>
+                <p class="sr-only" id="copyStatus" role="status" aria-live="polite"></p>
                 <div class="notice">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" /></svg>
-                    <p>The script asks for your sudo password. It only modifies driver-related files, and you can uninstall cleanly by re-running the command with <code>-u</code>.</p>
+                    <p>The script asks for your sudo password and only touches driver-related files. To preview every step without changing anything, add <code>-- --dry-run</code> to the end of the command. To uninstall, add <code>-- -u</code> instead.</p>
                 </div>
             </section>
 
             <section class="card">
                 <h2>What the Script Does</h2>
-                <div class="steps">
-                    <div class="step">
+                <ol class="steps">
+                    <li class="step">
                         <span class="step-num">1</span>
                         <div class="step-body">
-                            <h4>Detect Your System</h4>
-                            <p>Identifies your distro (Debian, Ubuntu, Kali, Arch, etc.) and installs the right dependencies.</p>
+                            <h3>Detect Your System</h3>
+                            <p>Identifies your distro (Debian, Ubuntu, Kali, Arch, etc.), looks for your Realtek adapter, and installs kernel headers and build tools.</p>
                         </div>
-                    </div>
-                    <div class="step">
+                    </li>
+                    <li class="step">
                         <span class="step-num">2</span>
                         <div class="step-body">
-                            <h4>Fetch the Latest Drivers</h4>
+                            <h3>Fetch the Latest Drivers</h3>
                             <p>Pulls the lwfinger/rtw88 source - a community-maintained backport of the upstream kernel drivers.</p>
                         </div>
-                    </div>
-                    <div class="step">
+                    </li>
+                    <li class="step">
                         <span class="step-num">3</span>
                         <div class="step-body">
-                            <h4>Build &amp; Register with DKMS</h4>
+                            <h3>Build &amp; Register with DKMS</h3>
                             <p>Compiles the driver for your running kernel and registers it with DKMS so it rebuilds automatically on every kernel update.</p>
                         </div>
-                    </div>
-                    <div class="step">
+                    </li>
+                    <li class="step">
                         <span class="step-num">4</span>
                         <div class="step-body">
-                            <h4>Configure &amp; Load</h4>
-                            <p>Copies firmware files, writes modprobe config, and loads the driver. A reboot finishes the job.</p>
+                            <h3>Install Firmware &amp; Config</h3>
+                            <p>Copies the firmware files and a modprobe config that switches off the kernel's built-in rtw88 driver. A reboot loads the new one.</p>
                         </div>
-                    </div>
-                </div>
+                    </li>
+                </ol>
             </section>
 
             <section class="card">
@@ -139,7 +146,7 @@
                     </div>
                     <div class="grid-item">
                         <h3>Configuration</h3>
-                        <p>Firmware blobs and a modprobe config with sensible defaults</p>
+                        <p>Firmware files, plus a modprobe config with sensible defaults that keeps the in-kernel driver from loading</p>
                     </div>
                 </div>
             </section>
@@ -148,40 +155,42 @@
                 <h2>Supported Hardware</h2>
                 <div class="chipsets">
                     <div class="chipset">
-                        <h4>PCIe Cards</h4>
-                        <div class="chipset-list">
-                            <code>RTL8723DE</code>
-                            <code>RTL8814AE</code>
-                            <code>RTL8821CE</code>
-                            <code>RTL8822BE</code>
-                            <code>RTL8822CE</code>
-                        </div>
+                        <h3>PCIe Cards</h3>
+                        <ul class="chipset-list">
+                            <li><code>RTL8723DE</code></li>
+                            <li><code>RTL8812AE</code></li>
+                            <li><code>RTL8814AE</code></li>
+                            <li><code>RTL8821AE</code></li>
+                            <li><code>RTL8821CE</code></li>
+                            <li><code>RTL8822BE</code></li>
+                            <li><code>RTL8822CE</code></li>
+                        </ul>
                     </div>
                     <div class="chipset">
-                        <h4>USB Adapters</h4>
-                        <div class="chipset-list">
-                            <code>RTL8723DU</code>
-                            <code>RTL8811AU</code>
-                            <code>RTL8811CU</code>
-                            <code>RTL8812AU</code>
-                            <code>RTL8812BU</code>
-                            <code>RTL8812CU</code>
-                            <code>RTL8814AU</code>
-                            <code>RTL8821AU</code>
-                            <code>RTL8821CU</code>
-                            <code>RTL8822BU</code>
-                            <code>RTL8822CU</code>
-                        </div>
+                        <h3>USB Adapters</h3>
+                        <ul class="chipset-list">
+                            <li><code>RTL8723DU</code></li>
+                            <li><code>RTL8811AU</code></li>
+                            <li><code>RTL8811CU</code></li>
+                            <li><code>RTL8812AU</code></li>
+                            <li><code>RTL8812BU</code></li>
+                            <li><code>RTL8812CU</code></li>
+                            <li><code>RTL8814AU</code></li>
+                            <li><code>RTL8821AU</code></li>
+                            <li><code>RTL8821CU</code></li>
+                            <li><code>RTL8822BU</code></li>
+                            <li><code>RTL8822CU</code></li>
+                        </ul>
                     </div>
                     <div class="chipset">
-                        <h4>SDIO Cards</h4>
-                        <div class="chipset-list">
-                            <code>RTL8723CS</code>
-                            <code>RTL8723DS</code>
-                            <code>RTL8821CS</code>
-                            <code>RTL8822BS</code>
-                            <code>RTL8822CS</code>
-                        </div>
+                        <h3>SDIO Cards</h3>
+                        <ul class="chipset-list">
+                            <li><code>RTL8723CS</code></li>
+                            <li><code>RTL8723DS</code></li>
+                            <li><code>RTL8821CS</code></li>
+                            <li><code>RTL8822BS</code></li>
+                            <li><code>RTL8822CS</code></li>
+                        </ul>
                     </div>
                 </div>
             </section>
@@ -211,20 +220,20 @@
             <section class="card">
                 <h2>After Installation</h2>
                 <p>A few things to check once the script finishes:</p>
-                <div class="post-steps">
-                    <div class="grid-item">
+                <ol class="post-steps">
+                    <li class="grid-item">
                         <h3>1. Handle Secure Boot</h3>
-                        <p>Secure Boot requires enrolling a Machine Owner Key (MOK). The script detects this and walks you through it.</p>
-                    </div>
-                    <div class="grid-item">
+                        <p>With Secure Boot on, you may need to enroll a Machine Owner Key (MOK). The script checks and prints the exact steps if you do.</p>
+                    </li>
+                    <li class="grid-item">
                         <h3>2. Reboot</h3>
                         <p>A reboot loads the new driver. Your WiFi adapter should appear automatically.</p>
-                    </div>
-                    <div class="grid-item">
+                    </li>
+                    <li class="grid-item">
                         <h3>3. Verify</h3>
                         <p>Confirm the driver loaded: <code>lsmod | grep rtw</code></p>
-                    </div>
-                </div>
+                    </li>
+                </ol>
             </section>
         </main>
 

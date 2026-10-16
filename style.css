@@ -4,7 +4,12 @@
 
 /* ── Tokens ── */
 
+/* Text/background pairs meet WCAG AA (4.5:1, or 3:1 for the large h1)
+   in both themes, including text on --primary-soft tints. */
+
 :root {
+    color-scheme: dark;
+
     --font: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
     --mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 
@@ -12,36 +17,41 @@
     --surface: #1a1e25;
     --primary: #34bec9;
     --primary-hover: #2ca8b2;
+    --primary-2: #5fd4e4;
     --primary-soft: rgba(52, 190, 201, 0.1);
     --primary-line: rgba(52, 190, 201, 0.22);
+    --on-primary: #0a1a1d;
     --text: #e2e5ea;
-    --text-muted: #7c8290;
+    --text-muted: #9097a3;
     --border: rgba(255, 255, 255, 0.07);
     --code-bg: #0e1117;
+    --terminal-muted: #8b949e;
     --success: #10b981;
     --warning: #f59e0b;
     --glow: rgba(52, 190, 201, 0.06);
     --radius: 12px;
     --shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 [data-theme="light"] {
+    color-scheme: light;
+
     --bg: #f2f4f7;
     --surface: #ffffff;
-    --primary: #0e8e9b;
-    --primary-hover: #0c7a85;
-    --primary-soft: rgba(14, 142, 155, 0.07);
-    --primary-line: rgba(14, 142, 155, 0.18);
+    --primary: #0a6f7a;
+    --primary-hover: #085c66;
+    --primary-2: #1593a5;
+    --primary-soft: rgba(10, 111, 122, 0.07);
+    --primary-line: rgba(10, 111, 122, 0.18);
+    --on-primary: #ffffff;
     --text: #181b20;
     --text-muted: #5b616e;
     --border: rgba(0, 0, 0, 0.06);
     --code-bg: #171b22;
-    --success: #059669;
+    --success: #047857;
     --warning: #d97706;
-    --glow: rgba(14, 142, 155, 0.04);
+    --glow: rgba(10, 111, 122, 0.04);
     --shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.09);
 }
 
 /* ── Reset ── */
@@ -66,7 +76,10 @@ body {
     line-height: 1.6;
     min-height: 100vh;
     padding: 20px;
-    transition: background-color 0.3s, color 0.3s;
+}
+
+ol, ul {
+    list-style: none;
 }
 
 .container {
@@ -88,7 +101,7 @@ h1 {
     letter-spacing: -0.03em;
     line-height: 1.15;
     margin-bottom: 14px;
-    background: linear-gradient(135deg, var(--primary), #5fd4e4);
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -120,11 +133,6 @@ h1 {
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--text-muted);
-    transition: border-color 0.2s;
-}
-
-.badge:hover {
-    border-color: var(--primary);
 }
 
 .badge-link {
@@ -134,6 +142,7 @@ h1 {
 }
 
 .badge-link:hover {
+    border-color: var(--primary);
     background: var(--primary-soft);
 }
 
@@ -152,12 +161,6 @@ h1 {
     padding: 32px;
     margin-bottom: 24px;
     box-shadow: var(--shadow);
-    transition: border-color 0.25s, box-shadow 0.25s;
-}
-
-.card:hover {
-    border-color: var(--primary-line);
-    box-shadow: var(--shadow-lg);
 }
 
 .card h2 {
@@ -171,6 +174,15 @@ h1 {
 .card > p {
     color: var(--text-muted);
     font-size: 0.95rem;
+}
+
+.card > p code {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    background: var(--primary-soft);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--primary);
 }
 
 /* ── Card entrance animation ── */
@@ -229,27 +241,29 @@ main > .card:nth-child(6) { animation-delay: 0.28s; }
 .terminal-title {
     font-family: var(--mono);
     font-size: 0.75rem;
-    color: #6e7681;
+    color: var(--terminal-muted);
     flex: 1;
 }
 
+/* The command wraps instead of scrolling so it's never cut off. The hanging
+   indent lines wrapped text up after the 2ch-wide "$ " prompt. */
 .terminal-body {
     display: block;
     font-family: var(--mono);
     font-size: 0.88rem;
     color: #79c0ff;
-    padding: 16px 20px;
-    white-space: pre;
-    overflow-x: auto;
+    padding: 16px 20px 16px calc(20px + 2ch);
+    text-indent: -2ch;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
     line-height: 1.6;
-    cursor: pointer;
     -webkit-user-select: all;
     user-select: all;
 }
 
 .terminal-body::before {
     content: '$ ';
-    color: #6e7681;
+    color: var(--terminal-muted);
     -webkit-user-select: none;
     user-select: none;
 }
@@ -258,7 +272,7 @@ main > .card:nth-child(6) { animation-delay: 0.28s; }
 
 .copy-btn {
     background: var(--primary);
-    color: #fff;
+    color: var(--on-primary);
     border: none;
     padding: 5px 12px;
     border-radius: 6px;
@@ -284,7 +298,7 @@ main > .card:nth-child(6) { animation-delay: 0.28s; }
 .copy-btn svg {
     width: 13px;
     height: 13px;
-    fill: #fff;
+    fill: currentColor;
 }
 
 /* ── Notice callout ── */
@@ -321,6 +335,7 @@ main > .card:nth-child(6) { animation-delay: 0.28s; }
     padding: 1px 6px;
     border-radius: 4px;
     color: var(--primary);
+    white-space: nowrap;
 }
 
 /* ── Steps timeline ── */
@@ -357,7 +372,7 @@ main > .card:nth-child(6) { animation-delay: 0.28s; }
     height: 36px;
     border-radius: 50%;
     background: var(--primary);
-    color: #fff;
+    color: var(--on-primary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -372,7 +387,7 @@ main > .card:nth-child(6) { animation-delay: 0.28s; }
     padding-top: 6px;
 }
 
-.step-body h4 {
+.step-body h3 {
     font-size: 1rem;
     font-weight: 600;
     color: var(--text);
@@ -387,9 +402,10 @@ main > .card:nth-child(6) { animation-delay: 0.28s; }
 
 /* ── Info grid ── */
 
+/* Both grids hold four items: 2x2 on desktop, so none is left orphaned. */
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
     margin-top: 16px;
 }
@@ -399,11 +415,6 @@ main > .card:nth-child(6) { animation-delay: 0.28s; }
     background: var(--primary-soft);
     border: 1px solid var(--primary-line);
     border-radius: 8px;
-    transition: border-color 0.2s;
-}
-
-.grid-item:hover {
-    border-color: var(--primary);
 }
 
 .grid-item h3 {
@@ -432,24 +443,13 @@ main > .card:nth-child(6) { animation-delay: 0.28s; }
     border-left: 3px solid var(--primary);
     padding: 14px 18px;
     border-radius: 4px;
-    transition: background 0.2s;
 }
 
-.chipset:hover {
-    background: var(--primary-line);
-}
-
-.chipset h4 {
+.chipset h3 {
     font-size: 0.92rem;
     font-weight: 600;
     color: var(--primary);
     margin-bottom: 4px;
-}
-
-.chipset p {
-    font-size: 0.88rem;
-    color: var(--text-muted);
-    line-height: 1.7;
 }
 
 .chipset-list {
@@ -467,12 +467,6 @@ main > .card:nth-child(6) { animation-delay: 0.28s; }
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text);
-    transition: border-color 0.2s, color 0.2s;
-}
-
-.chipset-list code:hover {
-    border-color: var(--primary);
-    color: var(--primary);
 }
 
 /* ── Post-install steps ── */
@@ -491,6 +485,7 @@ main > .card:nth-child(6) { animation-delay: 0.28s; }
     padding: 2px 7px;
     border-radius: 4px;
     color: var(--primary);
+    white-space: nowrap;
 }
 
 /* ── Footer ── */
@@ -563,18 +558,13 @@ footer a:hover {
         margin-bottom: 18px;
     }
 
-    .card:hover {
-        border-color: var(--border);
-        box-shadow: var(--shadow);
-    }
-
     .grid {
         grid-template-columns: 1fr;
     }
 
     .terminal-body {
         font-size: 0.78rem;
-        padding: 12px 14px;
+        padding: 12px 14px 12px calc(14px + 2ch);
     }
 
     .step {
@@ -611,7 +601,7 @@ footer a:hover {
 
     .terminal-body {
         font-size: 0.72rem;
-        padding: 12px;
+        padding: 12px 12px 12px calc(12px + 2ch);
     }
 }
 
@@ -646,6 +636,38 @@ footer a:hover {
 :focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
+}
+
+/* main is only focusable so the skip link moves focus there */
+main:focus {
+    outline: none;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Without JavaScript the copy and theme buttons can't work, so hide them */
+html:not(.js) .copy-btn,
+html:not(.js) .theme-toggle {
+    display: none;
+}
+
+/* Gradient text turns invisible in Windows High Contrast; use plain text */
+@media (forced-colors: active) {
+    h1 {
+        background: none;
+        -webkit-text-fill-color: currentColor;
+        color: CanvasText;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
