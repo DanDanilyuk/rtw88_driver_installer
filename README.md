@@ -6,10 +6,16 @@ Automated installation script for Realtek RTW88 WiFi 5 drivers on Linux systems 
 
 ## 🚀 Quick Install
 
-Run this command in your terminal:
+Run this command in your terminal as your normal user (not with `sudo` - the script asks for your password when it needs it):
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/DanDanilyuk/rtw88_driver_installer/main/install.sh)"
+/bin/bash -c "$(curl -fsSL https://dandanilyuk.github.io/rtw88_driver_installer/install.sh)"
+```
+
+To pass options, add `--` and then the options to the end of the command. For example, to preview every step without changing anything:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://dandanilyuk.github.io/rtw88_driver_installer/install.sh)" -- --dry-run
 ```
 
 ## 📋 Features
@@ -19,9 +25,10 @@ Run this command in your terminal:
 - **Multi-Distribution** - Works on Ubuntu, Debian, Kali, Raspberry Pi OS, and Arch-based distros
 - **Automatic Dependency Resolution** - Installs all required packages
 - **Smart Kernel Header Detection** - Finds and installs correct headers for your system
-- **Raspberry Pi Optimized** - Automatic ARM/ARM64 configuration
+- **Raspberry Pi Support** - Detects Raspberry Pi and installs the matching kernel headers
 - **Existing Driver Cleanup** - Detects and removes all registered `rtw88` DKMS versions before reinstalling
-- **Pre-flight Chipset Detection** - Scans `lspci` and `lsusb` for Realtek adapters and reports what it finds before installing
+- **Pre-flight Chipset Detection** - Scans `lspci`, `lsusb`, and the SDIO bus for Realtek adapters and reports what it finds before installing
+- **Conflict Warnings** - Flags other out-of-tree Realtek drivers (aircrack-ng `rtl8812au`, morrownr `88x2bu`, Kali's `realtek-rtl88xxau-dkms`) that compete for the same adapter
 - **Dry-run Mode** - Preview every action without touching the system (`--dry-run` / `-n`)
 - **Detailed Logging** - Every step is teed to `/var/log/rtw88-install.log` (or `--log-file PATH`) for easy debugging
 - **Concurrent-Run Protection** - A lock file prevents two installers from racing each other
@@ -30,7 +37,7 @@ Run this command in your terminal:
 
 ### PCIe Cards
 
-- RTL8723DE, RTL8814AE, RTL8821CE, RTL8822BE, RTL8822CE
+- RTL8723DE, RTL8812AE, RTL8814AE, RTL8821AE, RTL8821CE, RTL8822BE, RTL8822CE
 
 ### USB Adapters
 
@@ -52,10 +59,10 @@ Run this command in your terminal:
 
 ## 📦 What Gets Installed
 
-- **Driver Source:** [lwfinger/rtw88](https://github.com/lwfinger/rtw88) - Official backport of Realtek WiFi 5 drivers
+- **Driver Source:** [lwfinger/rtw88](https://github.com/lwfinger/rtw88) - Community-maintained backport of the upstream Realtek WiFi 5 drivers
 - **Installation Method:** DKMS (Dynamic Kernel Module Support)
 - **Dependencies:** build-essential, dkms, git, kernel headers
-- **Configuration:** Firmware files and modprobe configuration
+- **Configuration:** Firmware files and a modprobe config that also blacklists the in-kernel rtw88 driver
 
 ## 🔧 Installation Process
 
@@ -64,12 +71,12 @@ The script walks through nine numbered steps, prefixed in output as `[N/9]`:
 1. **Detecting your Linux distribution** - Identifies the package manager family (apt or pacman)
 2. **Detecting Realtek hardware** - Scans `lspci` and `lsusb` for supported chipsets (warns but does not abort if none are found)
 3. **Checking network** - Verifies connectivity to github.com
-4. **Checking for existing driver** - Removes every registered `rtw88` DKMS version and its source tree
-5. **Installing kernel headers** - Picks the right headers package for your kernel variant (standard, -lts, -zen, -hardened, raspberrypi)
+4. **Checking for existing driver** - Finds every registered `rtw88` DKMS version and warns about conflicting Realtek drivers. If you choose to replace the old driver, it is removed in step 8, after everything is downloaded, so a connection that depends on it stays up
+5. **Installing kernel headers** - Picks the headers package for your running kernel (Debian/Ubuntu/Kali exact version or metapackage, Raspberry Pi, or the Arch kernel package it belongs to: `linux`, `linux-lts`, `linux-zen`, Manjaro's `linux66`, ...) and checks the build directory really exists
 6. **Installing packages** - Installs `dkms`, `git`, and build tools (`build-essential` or `base-devel`)
-7. **Cloning driver repository** - Shallow-clones `lwfinger/rtw88` and auto-detects `PACKAGE_VERSION` from its `dkms.conf`
-8. **Compiling driver with DKMS** - Builds, installs firmware, and writes the modprobe config
-9. **Verifying installation** - Confirms the DKMS module is registered and the config file is in place
+7. **Cloning driver repository** - Shallow-clones `lwfinger/rtw88` into a private temporary directory and auto-detects `PACKAGE_VERSION` from its `dkms.conf`. The clone is deleted on exit; DKMS keeps its own copy in `/usr/src/rtw88-<version>`
+8. **Compiling driver with DKMS** - Removes the old driver (if replacing), then builds, installs firmware, and writes the modprobe config
+9. **Verifying installation** - Confirms the DKMS module is installed for the running kernel and the config file is in place
 
 Pre-flight: the script also acquires `/var/lock/rtw88-install.lock` via `flock`, sets up `/var/log/rtw88-install.log` (falling back to `/tmp` if the system log directory is not writable), and runs a keepalive loop so it does not re-prompt for sudo during long builds.
 
@@ -78,17 +85,19 @@ Pre-flight: the script also acquires `/var/lock/rtw88-install.lock` via `flock`,
 ```
 -h, --help           Show this help message
 -v, --version        Show script version
--y, --yes            Skip confirmation prompts (unattended install)
+-y, --yes            Skip confirmation prompts (unattended install; reboots when done)
 -u, --uninstall      Uninstall the driver and DKMS entries
 -n, --dry-run        Show what would run without making any changes
     --log-file PATH  Write the install log to PATH (default: /var/log/rtw88-install.log)
 ```
 
+With the one-line installer, put the options after `--`, as in `/bin/bash -c "$(curl -fsSL ...)" -- -y`. Prompts read from your terminal, so `curl ... | bash` works too.
+
 `--dry-run` is useful for auditing the script before running it as root - every destructive command is printed with a `[DRY-RUN]` prefix instead of executing. Combine with `--yes` to preview a non-interactive install end-to-end.
 
 ## 🔐 Secure Boot
 
-If Secure Boot is enabled on your system, you'll need to enroll the MOK (Machine Owner Key) after installation:
+If Secure Boot is enabled on your system, you may need to enroll the MOK (Machine Owner Key) after installation. The script checks whether the DKMS signing key is already enrolled and prints the exact command for your system if it isn't:
 
 ### Ubuntu/Debian-based systems:
 
@@ -135,19 +144,19 @@ After installation and reboot:
 
 ## 🗑️ Uninstallation
 
-Re-run the installer with `-u`:
+Re-run the installer with `-u` (as your normal user, not with `sudo`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DanDanilyuk/rtw88_driver_installer/main/install.sh | sudo bash -s -- -u
+/bin/bash -c "$(curl -fsSL https://dandanilyuk.github.io/rtw88_driver_installer/install.sh)" -- -u
 ```
 
-Or, if you kept a local copy of the script:
+Or, if you have a local copy of the script:
 
 ```bash
-sudo ./install.sh -u
+./install.sh -u
 ```
 
-This removes every registered `rtw88` DKMS version (not just the one this run installed), cleans up `/usr/src/rtw88-*`, and deletes the modprobe config. Then reboot.
+This unloads the driver, removes every registered `rtw88` DKMS version (not just the one this run installed), cleans up `/usr/src/rtw88-*`, and deletes the modprobe config. Then reboot.
 
 ## 🐛 Troubleshooting
 
@@ -164,21 +173,23 @@ The full install log lives at `/var/log/rtw88-install.log` (or wherever `--log-f
 
 The script attempts to install headers automatically. If it fails:
 
-- **Ubuntu/Debian:** `sudo apt-get install linux-headers-$(uname -r)`
-- **Raspberry Pi:** `sudo apt-get install raspberrypi-kernel-headers`
-- **Arch:** `sudo pacman -S linux-headers`
+- **Ubuntu/Debian/Kali:** `sudo apt-get install linux-headers-$(uname -r)`
+- **Raspberry Pi:** `sudo apt-get install linux-headers-$(uname -r)` (current Pi OS) or `sudo apt-get install raspberrypi-kernel-headers` (older releases)
+- **Arch:** `sudo pacman -S linux-headers` (or `linux-lts-headers`, `linux-zen-headers`, ... to match your kernel)
+
+If no headers package exists for your running kernel, a newer kernel is usually installed but not booted yet (common on Kali rolling). Fully upgrade (`sudo apt-get full-upgrade` or `sudo pacman -Syu`), reboot, and run the script again.
 
 ### WiFi adapter not detected
 
 1. Verify adapter is connected: `lsusb` or `lspci`
 2. Check if adapter chipset is supported (see hardware list above)
-3. Ensure adapter is RTW88-based (not RTL88x2bu or other variants)
+3. If `lsusb` shows the adapter in CD-ROM mode, install `usb_modeswitch` and reboot
 
 ### Conflicts with existing drivers
 
-The script automatically detects and offers to remove conflicting drivers. If issues persist:
+The script replaces any earlier `rtw88` install and warns about other out-of-tree Realtek drivers (such as aircrack-ng `rtl8812au`, morrownr `88x2bu`, or Kali's `realtek-rtl88xxau-dkms`), but it does not remove those itself. If issues persist:
 
-1. Manually unload conflicting modules
+1. Remove the conflicting driver (for example `sudo dkms remove <name>/<version> --all`, or `sudo apt remove realtek-rtl88xxau-dkms` on Kali) and unload its module
 2. Check `/etc/modprobe.d/` for blacklist conflicts
 3. Re-run the installation script
 
